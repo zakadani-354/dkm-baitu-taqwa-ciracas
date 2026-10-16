@@ -26,6 +26,8 @@ public/
   ceklist.php          Ceklist status per bulan
 scripts/
   create_admin.php     Pembuatan akun admin melalui CLI
+api/
+  *.php                Entrypoint fungsi Vercel yang meneruskan ke public/
 ```
 
 ## Menjalankan aplikasi
@@ -51,7 +53,7 @@ Gunakan HTTPS di deployment. Cookie session ditandai `Secure` otomatis ketika HT
 
 ## Deployment ke Vercel
 
-Proyek menggunakan runtime PHP komunitas `vercel-php` karena PHP bukan runtime resmi Vercel. Runtime tersebut menjalankan halaman PHP sebagai Vercel Functions; koneksi MySQL harus dapat diakses dari jaringan Vercel.
+Proyek menggunakan runtime PHP komunitas `vercel-php` karena PHP bukan runtime resmi Vercel. Entrypoint fungsi berada di `api/`, lalu meneruskan permintaan ke halaman yang sudah ada di `public/`. Koneksi MySQL harus dapat diakses dari jaringan Vercel.
 
 1. Impor repository GitHub `zakadani-354/dkm-baitu-taqwa-ciracas` sebagai proyek baru di Vercel.
 2. Jalankan `database/schema.sql` pada database MySQL online jika tabel aplikasi belum dibuat.
