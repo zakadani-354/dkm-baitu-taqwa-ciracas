@@ -4,6 +4,11 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config/database.php';
 require_once __DIR__ . '/helpers.php';
 
+if (getenv('VERCEL') === '1') {
+    require_once __DIR__ . '/database_session_handler.php';
+    session_set_save_handler(new DatabaseSessionHandler(), true);
+}
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');

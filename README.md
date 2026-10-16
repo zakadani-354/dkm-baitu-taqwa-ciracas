@@ -49,6 +49,24 @@ scripts/
 
 Gunakan HTTPS di deployment. Cookie session ditandai `Secure` otomatis ketika HTTPS terdeteksi, serta selalu `HttpOnly` dan `SameSite=Lax`. Pastikan `display_errors=Off` dan logging PHP aktif di production. Chart.js dan font antarmuka dimuat dari CDN, sehingga browser memerlukan akses internet untuk aset tersebut.
 
+## Deployment ke Vercel
+
+Proyek menggunakan runtime PHP komunitas `vercel-php` karena PHP bukan runtime resmi Vercel. Runtime tersebut menjalankan halaman PHP sebagai Vercel Functions; koneksi MySQL harus dapat diakses dari jaringan Vercel.
+
+1. Impor repository GitHub `zakadani-354/dkm-baitu-taqwa-ciracas` sebagai proyek baru di Vercel.
+2. Jalankan `database/schema.sql` pada database MySQL online jika tabel aplikasi belum dibuat.
+3. Jalankan `database/vercel_sessions.sql` satu kali pada database yang sama. Tabel ini menyimpan sesi lintas fungsi dan instance serverless.
+4. Tambahkan environment variables berikut pada pengaturan proyek Vercel untuk Production dan Preview:
+   - `DB_HOST`
+   - `DB_PORT`
+   - `DB_NAME`
+   - `DB_USER`
+   - `DB_PASSWORD`
+5. Deploy ulang setelah environment variables tersimpan.
+6. Buat akun admin menggunakan `scripts/create_admin.php` dari lingkungan CLI yang terhubung ke database yang sama, lalu buka domain deployment Vercel.
+
+Jangan masukkan kredensial database ke GitHub atau ke dalam chat. Simpan hanya pada Vercel Project Settings → Environment Variables. Runtime PHP untuk deployment ini dikelola komunitas, bukan runtime resmi yang dikembangkan Vercel.
+
 ## Keamanan dan skema
 
 - Semua query aplikasi menggunakan PDO prepared statements dengan emulasi prepare dinonaktifkan.
