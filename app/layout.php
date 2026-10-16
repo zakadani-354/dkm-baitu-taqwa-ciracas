@@ -11,6 +11,7 @@ function page_start(string $title): void
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title><?= e($title) ?> · Masjid Baitu Taqwa</title>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
         <link rel="stylesheet" href="assets/css/app.css">
     </head>
     <body>
