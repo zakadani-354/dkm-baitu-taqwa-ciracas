@@ -28,7 +28,12 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
         $statement->execute(['session_id' => $id, 'now' => time()]);
         $data = $statement->fetchColumn();
 
-        return is_string($data) ? $data : '';
+        if (!is_string($data)) {
+            return '';
+        }
+
+        $decoded = base64_decode($data, true);
+        return $decoded === false ? '' : $decoded;
     }
 
     public function write(string $id, string $data): bool
@@ -38,18 +43,25 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
         }
 
         $expiresAt = time() + max(1, (int) ini_get('session.gc_maxlifetime'));
-        $statement = db()->prepare(
-            'INSERT INTO app_sessions (session_id, session_data, expires_at)
-             VALUES (:session_id, :session_data, :expires_at)
-             ON DUPLICATE KEY UPDATE session_data = :updated_data, expires_at = :updated_expires_at'
-        );
-        $statement->execute([
+        $sql = db_driver() === 'pgsql'
+            ? 'INSERT INTO app_sessions (session_id, session_data, expires_at)
+               VALUES (:session_id, :session_data, :expires_at)
+               ON CONFLICT (session_id) DO UPDATE
+               SET session_data = EXCLUDED.session_data, expires_at = EXCLUDED.expires_at'
+            : 'INSERT INTO app_sessions (session_id, session_data, expires_at)
+               VALUES (:session_id, :session_data, :expires_at)
+               ON DUPLICATE KEY UPDATE session_data = :updated_data, expires_at = :updated_expires_at';
+        $statement = db()->prepare($sql);
+        $parameters = [
             'session_id' => $id,
-            'session_data' => $data,
+            'session_data' => base64_encode($data),
             'expires_at' => $expiresAt,
-            'updated_data' => $data,
-            'updated_expires_at' => $expiresAt,
-        ]);
+        ];
+        if (db_driver() === 'mysql') {
+            $parameters['updated_data'] = base64_encode($data);
+            $parameters['updated_expires_at'] = $expiresAt;
+        }
+        $statement->execute($parameters);
 
         return true;
     }
@@ -118,11 +130,14 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
         }
 
         $lockName = 'dkm_session_' . substr(hash('sha256', $id), 0, 48);
-        $statement = db()->prepare('SELECT GET_LOCK(:lock_name, 5)');
+        $sql = db_driver() === 'pgsql'
+            ? 'SELECT pg_try_advisory_lock(hashtextextended(:lock_name, 0))'
+            : 'SELECT GET_LOCK(:lock_name, 5)';
+        $statement = db()->prepare($sql);
         $statement->execute(['lock_name' => $lockName]);
         $locked = $statement->fetchColumn();
 
-        if ($locked !== 1 && $locked !== '1') {
+        if (!in_array($locked, [true, 1, '1', 't'], true)) {
             return false;
         }
 
@@ -137,7 +152,10 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
         }
 
         $lockName = 'dkm_session_' . substr(hash('sha256', $this->lockedSessionId), 0, 48);
-        $statement = db()->prepare('SELECT RELEASE_LOCK(:lock_name)');
+        $sql = db_driver() === 'pgsql'
+            ? 'SELECT pg_advisory_unlock(hashtextextended(:lock_name, 0))'
+            : 'SELECT RELEASE_LOCK(:lock_name)';
+        $statement = db()->prepare($sql);
         $statement->execute(['lock_name' => $lockName]);
         $this->lockedSessionId = null;
     }

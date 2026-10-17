@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('presensi.php');
     }
 }
-$peopleStatement = db()->prepare('SELECT id, nama, kategori FROM jamaah WHERE aktif = 1 ORDER BY nama');
+$peopleStatement = db()->prepare('SELECT id, nama, kategori FROM jamaah WHERE aktif = TRUE ORDER BY nama');
 $peopleStatement->execute();
 $people = $peopleStatement->fetchAll();
 $recentStatement = db()->prepare(

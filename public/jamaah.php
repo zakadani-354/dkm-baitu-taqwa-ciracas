@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$listStatement = db()->prepare('SELECT id, nama, kategori, alamat, no_telepon, aktif FROM jamaah ORDER BY aktif DESC, nama');
+$listStatement = db()->prepare('SELECT id, nama, kategori, alamat, no_telepon, CASE WHEN aktif THEN 1 ELSE 0 END AS aktif FROM jamaah ORDER BY aktif DESC, nama');
 $listStatement->execute();
 $jamaah = $listStatement->fetchAll();
 page_start('Data Jamaah');

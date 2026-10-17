@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('kegiatan.php');
     }
 }
-$statement = db()->prepare('SELECT id, nama, deskripsi, aktif FROM kegiatan ORDER BY aktif DESC, nama');
+$statement = db()->prepare('SELECT id, nama, deskripsi, CASE WHEN aktif THEN 1 ELSE 0 END AS aktif FROM kegiatan ORDER BY aktif DESC, nama');
 $statement->execute();
 $activities = $statement->fetchAll();
 page_start('Manajemen Kegiatan');

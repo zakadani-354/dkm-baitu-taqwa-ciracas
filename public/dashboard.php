@@ -8,9 +8,9 @@ require_login();
 $summaryStatement = db()->prepare(
     "SELECT
         COUNT(*) AS total,
-        SUM(status = 'Hadir') AS hadir,
-        SUM(status = 'Izin') AS izin,
-        SUM(status = 'Alpa') AS alpa
+        SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) AS hadir,
+        SUM(CASE WHEN status = 'Izin' THEN 1 ELSE 0 END) AS izin,
+        SUM(CASE WHEN status = 'Alpa' THEN 1 ELSE 0 END) AS alpa
      FROM presensi
      WHERE tanggal >= :start_date AND tanggal < :end_date"
 );
@@ -20,11 +20,14 @@ $summaryStatement->execute([
 ]);
 $summary = $summaryStatement->fetch();
 
+$monthExpression = db_driver() === 'pgsql'
+    ? "TO_CHAR(tanggal, 'YYYY-MM')"
+    : "DATE_FORMAT(tanggal, '%Y-%m')";
 $monthlyStatement = db()->prepare(
-    "SELECT DATE_FORMAT(tanggal, '%Y-%m') AS bulan, status, COUNT(*) AS jumlah
+    "SELECT {$monthExpression} AS bulan, status, COUNT(*) AS jumlah
      FROM presensi
      WHERE tanggal >= :start_date AND tanggal < :end_date
-     GROUP BY DATE_FORMAT(tanggal, '%Y-%m'), status
+     GROUP BY {$monthExpression}, status
      ORDER BY bulan"
 );
 $monthlyStatement->execute([

@@ -27,13 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('ceklist.php?bulan=' . rawurlencode(valid_month($postedMonth) ? $postedMonth : date('Y-m')));
 }
 
-$activitiesStatement = db()->prepare('SELECT id FROM kegiatan WHERE aktif = 1');
+$activitiesStatement = db()->prepare('SELECT id FROM kegiatan WHERE aktif = TRUE');
 $activitiesStatement->execute();
 $activeActivities = $activitiesStatement->fetchAll();
-$insert = db()->prepare(
-    "INSERT INTO ceklist (kegiatan_id, bulan) VALUES (:kegiatan_id, :bulan)
-     ON DUPLICATE KEY UPDATE kegiatan_id = VALUES(kegiatan_id)"
-);
+$insertSql = db_driver() === 'pgsql'
+    ? 'INSERT INTO ceklist (kegiatan_id, bulan) VALUES (:kegiatan_id, :bulan)
+       ON CONFLICT (kegiatan_id, bulan) DO NOTHING'
+    : 'INSERT INTO ceklist (kegiatan_id, bulan) VALUES (:kegiatan_id, :bulan)
+       ON DUPLICATE KEY UPDATE kegiatan_id = VALUES(kegiatan_id)';
+$insert = db()->prepare($insertSql);
 foreach ($activeActivities as $activity) {
     $insert->execute(['kegiatan_id' => $activity['id'], 'bulan' => $monthStart]);
 }
