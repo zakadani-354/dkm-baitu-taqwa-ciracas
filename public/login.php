@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $error = 'Nama pengguna atau kata sandi tidak sesuai.';
     } catch (\Throwable $e) {
-        $error = 'Gagal terhubung ke database. Periksa konfigurasi koneksi atau skema database.';
+        $error = 'Gagal terhubung ke database: ' . $e->getMessage();
         error_log('Login error: ' . $e->getMessage());
     }
 }
