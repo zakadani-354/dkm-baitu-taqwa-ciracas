@@ -18,19 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         || !in_array($status, $statuses, true) || !in_array($jenis, $eventTypes, true)) {
         $error = 'Periksa kembali jamaah, tanggal, status, dan jenis pengajian.';
     } else {
-        $statement = db()->prepare(
-            'INSERT INTO presensi (jamaah_id, tanggal, status, jenis_pengajian, dicatat_oleh)
-             VALUES (:jamaah_id, :tanggal, :status, :jenis, :user_id)'
-        );
-        $statement->execute([
-            'jamaah_id' => $jamaahId,
-            'tanggal' => $tanggal,
-            'status' => $status,
-            'jenis' => $jenis,
-            'user_id' => $_SESSION['user_id'],
-        ]);
-        flash('success', 'Presensi berhasil dicatat.');
-        redirect('presensi.php');
+        try {
+            $statement = db()->prepare(
+                'INSERT INTO presensi (jamaah_id, tanggal, status, jenis_pengajian, dicatat_oleh)
+                 VALUES (:jamaah_id, :tanggal, :status, :jenis, :user_id)'
+            );
+            $statement->execute([
+                'jamaah_id' => $jamaahId,
+                'tanggal' => $tanggal,
+                'status' => $status,
+                'jenis' => $jenis,
+                'user_id' => $_SESSION['user_id'],
+            ]);
+            flash('success', 'Presensi berhasil dicatat.');
+            redirect('presensi.php');
+        } catch (\PDOException) {
+            $error = 'Presensi untuk jamaah pada tanggal dan jenis pengajian tersebut sudah pernah dicatat.';
+        }
     }
 }
 $peopleStatement = db()->prepare('SELECT id, nama, kategori FROM jamaah WHERE aktif = TRUE ORDER BY nama');

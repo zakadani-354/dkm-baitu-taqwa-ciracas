@@ -62,14 +62,16 @@ Proyek menggunakan runtime PHP komunitas `vercel-php` karena PHP bukan runtime r
 2. Jalankan skema yang cocok pada database online jika tabel aplikasi belum dibuat:
    - MySQL: `database/schema.sql`, lalu `database/vercel_sessions.sql`.
    - PostgreSQL / Supabase: `database/schema.postgres.sql`, lalu `database/vercel_sessions.postgres.sql`.
-3. Tambahkan environment variables berikut pada pengaturan proyek Vercel untuk Production dan Preview:
-   - `DB_DRIVER` (`mysql` atau `pgsql`)
-   - `DB_HOST`
-   - `DB_PORT`
-   - `DB_NAME`
-   - `DB_USER`
-   - `DB_PASSWORD`
-4. Untuk Supabase, gunakan **Session Pooler** pada halaman Connect proyek, bukan alamat `db.<project-ref>.supabase.co` jika koneksi langsung menghasilkan `Cannot assign requested address`. Masukkan host dan port pooler yang ditampilkan Supabase, set `DB_DRIVER=pgsql`, `DB_NAME=postgres`, dan `DB_USER=postgres.<project-ref>`. Koneksi PostgreSQL memakai SSL `require`. Jangan gunakan Transaction Pooler karena penyimpanan sesi aplikasi memakai advisory lock PostgreSQL.
+3. Tambahkan environment variables pada pengaturan proyek Vercel untuk Production dan Preview. Anda dapat menggunakan salah satu dari dua cara:
+   - **Opsi A (URL Tunggal)**: Atur `DATABASE_URL` atau `POSTGRES_URL` (format: `postgresql://user:password@host:port/dbname?sslmode=require`).
+   - **Opsi B (Parameter Terpisah)**:
+     - `DB_DRIVER` (`mysql` atau `pgsql`)
+     - `DB_HOST` (atau `POSTGRES_HOST`)
+     - `DB_PORT` (atau `POSTGRES_PORT`)
+     - `DB_NAME` (atau `POSTGRES_DATABASE`)
+     - `DB_USER` (atau `POSTGRES_USER`)
+     - `DB_PASSWORD` (atau `POSTGRES_PASSWORD`)
+4. Untuk Supabase, Anda dapat menggunakan connection string langsung atau **Session Pooler** pada halaman Connect proyek. Database driver PostgreSQL menggunakan SSL `require` secara otomatis untuk host cloud remote.
 5. Deploy ulang setelah environment variables tersimpan.
 6. Buat akun admin menggunakan `scripts/create_admin.php` dari lingkungan CLI yang terhubung ke database yang sama, lalu buka domain deployment Vercel.
 

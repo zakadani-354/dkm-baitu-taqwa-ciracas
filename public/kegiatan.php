@@ -14,9 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($nama === '' || mb_strlen($nama) > 160 || mb_strlen($deskripsi) > 500) {
             flash('error', 'Nama kegiatan wajib diisi (maksimal 160 karakter); deskripsi maksimal 500 karakter.');
         } else {
-            $statement = db()->prepare('INSERT INTO kegiatan (nama, deskripsi, dibuat_oleh) VALUES (:nama, :deskripsi, :user_id)');
-            $statement->execute(['nama' => $nama, 'deskripsi' => $deskripsi ?: null, 'user_id' => $_SESSION['user_id']]);
-            flash('success', 'Kegiatan baru berhasil ditambahkan.');
+            try {
+                $statement = db()->prepare('INSERT INTO kegiatan (nama, deskripsi, dibuat_oleh) VALUES (:nama, :deskripsi, :user_id)');
+                $statement->execute(['nama' => $nama, 'deskripsi' => $deskripsi ?: null, 'user_id' => $_SESSION['user_id']]);
+                flash('success', 'Kegiatan baru berhasil ditambahkan.');
+            } catch (\PDOException) {
+                flash('error', 'Kegiatan dengan nama tersebut sudah ada.');
+            }
         }
         redirect('kegiatan.php');
     }
@@ -26,9 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === false || $id === null || !in_array($active, [0, 1], true)) {
             flash('error', 'Data perubahan kegiatan tidak valid.');
         } else {
-            $statement = db()->prepare('UPDATE kegiatan SET aktif = :aktif WHERE id = :id');
+            $statement = db()->prepare('UPDATE kegiatan SET aktif = (CASE WHEN :aktif = 1 THEN TRUE ELSE FALSE END) WHERE id = :id');
             $statement->execute(['aktif' => $active, 'id' => $id]);
-            flash('success', 'Status kegiatan berhasil diperbarui.');
+            flash('success', $active === 1 ? 'Status kegiatan berhasil diperbarui.' : 'Status kegiatan berhasil dinonaktifkan.');
         }
         redirect('kegiatan.php');
     }

@@ -18,58 +18,69 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
 
     public function read(string $id): string|false
     {
-        if (!$this->acquireLock($id)) {
-            return false;
-        }
+        $this->acquireLock($id);
 
-        $statement = db()->prepare(
-            'SELECT session_data FROM app_sessions WHERE session_id = :session_id AND expires_at > :now'
-        );
-        $statement->execute(['session_id' => $id, 'now' => time()]);
-        $data = $statement->fetchColumn();
+        try {
+            $statement = db()->prepare(
+                'SELECT session_data FROM app_sessions WHERE session_id = :session_id AND expires_at > :now'
+            );
+            $statement->execute(['session_id' => $id, 'now' => time()]);
+            $data = $statement->fetchColumn();
 
-        if (!is_string($data)) {
+            if (!is_string($data)) {
+                return '';
+            }
+
+            $decoded = base64_decode($data, true);
+            return ($decoded !== false && base64_encode($decoded) === $data) ? $decoded : $data;
+        } catch (\Throwable $e) {
+            error_log('Session read error: ' . $e->getMessage());
             return '';
         }
-
-        $decoded = base64_decode($data, true);
-        return $decoded === false ? '' : $decoded;
     }
 
     public function write(string $id, string $data): bool
     {
-        if (!$this->acquireLock($id)) {
+        $this->acquireLock($id);
+
+        try {
+            $expiresAt = time() + max(1, (int) ini_get('session.gc_maxlifetime'));
+            $sql = db_driver() === 'pgsql'
+                ? 'INSERT INTO app_sessions (session_id, session_data, expires_at)
+                   VALUES (:session_id, :session_data, :expires_at)
+                   ON CONFLICT (session_id) DO UPDATE
+                   SET session_data = EXCLUDED.session_data, expires_at = EXCLUDED.expires_at'
+                : 'INSERT INTO app_sessions (session_id, session_data, expires_at)
+                   VALUES (:session_id, :session_data, :expires_at)
+                   ON DUPLICATE KEY UPDATE session_data = :updated_data, expires_at = :updated_expires_at';
+            $statement = db()->prepare($sql);
+            $encoded = base64_encode($data);
+            $parameters = [
+                'session_id' => $id,
+                'session_data' => $encoded,
+                'expires_at' => $expiresAt,
+            ];
+            if (db_driver() === 'mysql') {
+                $parameters['updated_data'] = $encoded;
+                $parameters['updated_expires_at'] = $expiresAt;
+            }
+            $statement->execute($parameters);
+
+            return true;
+        } catch (\Throwable $e) {
+            error_log('Session write error: ' . $e->getMessage());
             return false;
         }
-
-        $expiresAt = time() + max(1, (int) ini_get('session.gc_maxlifetime'));
-        $sql = db_driver() === 'pgsql'
-            ? 'INSERT INTO app_sessions (session_id, session_data, expires_at)
-               VALUES (:session_id, :session_data, :expires_at)
-               ON CONFLICT (session_id) DO UPDATE
-               SET session_data = EXCLUDED.session_data, expires_at = EXCLUDED.expires_at'
-            : 'INSERT INTO app_sessions (session_id, session_data, expires_at)
-               VALUES (:session_id, :session_data, :expires_at)
-               ON DUPLICATE KEY UPDATE session_data = :updated_data, expires_at = :updated_expires_at';
-        $statement = db()->prepare($sql);
-        $parameters = [
-            'session_id' => $id,
-            'session_data' => base64_encode($data),
-            'expires_at' => $expiresAt,
-        ];
-        if (db_driver() === 'mysql') {
-            $parameters['updated_data'] = base64_encode($data);
-            $parameters['updated_expires_at'] = $expiresAt;
-        }
-        $statement->execute($parameters);
-
-        return true;
     }
 
     public function destroy(string $id): bool
     {
-        $statement = db()->prepare('DELETE FROM app_sessions WHERE session_id = :session_id');
-        $statement->execute(['session_id' => $id]);
+        try {
+            $statement = db()->prepare('DELETE FROM app_sessions WHERE session_id = :session_id');
+            $statement->execute(['session_id' => $id]);
+        } catch (\Throwable $e) {
+            error_log('Session destroy error: ' . $e->getMessage());
+        }
 
         if ($this->lockedSessionId === $id) {
             $this->releaseLock();
@@ -80,44 +91,43 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
 
     public function gc(int $maxLifetime): int|false
     {
-        $statement = db()->prepare('DELETE FROM app_sessions WHERE expires_at <= :now');
-        $statement->execute(['now' => time()]);
+        try {
+            $statement = db()->prepare('DELETE FROM app_sessions WHERE expires_at <= :now');
+            $statement->execute(['now' => time()]);
 
-        return $statement->rowCount();
+            return $statement->rowCount();
+        } catch (\Throwable $e) {
+            error_log('Session gc error: ' . $e->getMessage());
+            return false;
+        }
     }
 
     public function validateId(string $id): bool
     {
-        if (!$this->acquireLock($id)) {
+        try {
+            $statement = db()->prepare(
+                'SELECT 1 FROM app_sessions WHERE session_id = :session_id AND expires_at > :now'
+            );
+            $statement->execute(['session_id' => $id, 'now' => time()]);
+            return $statement->fetchColumn() !== false;
+        } catch (\Throwable $e) {
             return false;
         }
-
-        $statement = db()->prepare(
-            'SELECT 1 FROM app_sessions WHERE session_id = :session_id AND expires_at > :now'
-        );
-        $statement->execute(['session_id' => $id, 'now' => time()]);
-        $valid = $statement->fetchColumn() !== false;
-
-        if (!$valid) {
-            $this->releaseLock();
-        }
-
-        return $valid;
     }
 
     public function updateTimestamp(string $id, string $data): bool
     {
-        if (!$this->acquireLock($id)) {
+        try {
+            $expiresAt = time() + max(1, (int) ini_get('session.gc_maxlifetime'));
+            $statement = db()->prepare(
+                'UPDATE app_sessions SET expires_at = :expires_at WHERE session_id = :session_id'
+            );
+            $statement->execute(['expires_at' => $expiresAt, 'session_id' => $id]);
+
+            return true;
+        } catch (\Throwable $e) {
             return false;
         }
-
-        $expiresAt = time() + max(1, (int) ini_get('session.gc_maxlifetime'));
-        $statement = db()->prepare(
-            'UPDATE app_sessions SET expires_at = :expires_at WHERE session_id = :session_id'
-        );
-        $statement->execute(['expires_at' => $expiresAt, 'session_id' => $id]);
-
-        return true;
     }
 
     private function acquireLock(string $id): bool
@@ -129,20 +139,29 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
             $this->releaseLock();
         }
 
-        $lockName = 'dkm_session_' . substr(hash('sha256', $id), 0, 48);
-        $sql = db_driver() === 'pgsql'
-            ? 'SELECT pg_try_advisory_lock(hashtextextended(:lock_name, 0))'
-            : 'SELECT GET_LOCK(:lock_name, 5)';
-        $statement = db()->prepare($sql);
-        $statement->execute(['lock_name' => $lockName]);
-        $locked = $statement->fetchColumn();
+        try {
+            if (db_driver() === 'pgsql') {
+                $lockKey = (int) (hexdec(substr(hash('sha256', $id), 0, 15)) & 0x7FFFFFFFFFFFFFFF);
+                $statement = db()->prepare('SELECT pg_try_advisory_lock(:lock_key)');
+                $statement->execute(['lock_key' => $lockKey]);
+            } else {
+                $lockName = 'dkm_session_' . substr(hash('sha256', $id), 0, 48);
+                $statement = db()->prepare('SELECT GET_LOCK(:lock_name, 5)');
+                $statement->execute(['lock_name' => $lockName]);
+            }
+            $locked = $statement->fetchColumn();
 
-        if (!in_array($locked, [true, 1, '1', 't'], true)) {
+            if (!in_array($locked, [true, 1, '1', 't'], true)) {
+                return false;
+            }
+
+            $this->lockedSessionId = $id;
+            return true;
+        } catch (\Throwable $e) {
+            // Advisory lock failure (e.g. unsupported pooler mode) should not block session
+            error_log('Session lock warning: ' . $e->getMessage());
             return false;
         }
-
-        $this->lockedSessionId = $id;
-        return true;
     }
 
     private function releaseLock(): void
@@ -151,12 +170,20 @@ final class DatabaseSessionHandler implements SessionHandlerInterface, SessionUp
             return;
         }
 
-        $lockName = 'dkm_session_' . substr(hash('sha256', $this->lockedSessionId), 0, 48);
-        $sql = db_driver() === 'pgsql'
-            ? 'SELECT pg_advisory_unlock(hashtextextended(:lock_name, 0))'
-            : 'SELECT RELEASE_LOCK(:lock_name)';
-        $statement = db()->prepare($sql);
-        $statement->execute(['lock_name' => $lockName]);
-        $this->lockedSessionId = null;
+        try {
+            if (db_driver() === 'pgsql') {
+                $lockKey = (int) (hexdec(substr(hash('sha256', $this->lockedSessionId), 0, 15)) & 0x7FFFFFFFFFFFFFFF);
+                $statement = db()->prepare('SELECT pg_advisory_unlock(:lock_key)');
+                $statement->execute(['lock_key' => $lockKey]);
+            } else {
+                $lockName = 'dkm_session_' . substr(hash('sha256', $this->lockedSessionId), 0, 48);
+                $statement = db()->prepare('SELECT RELEASE_LOCK(:lock_name)');
+                $statement->execute(['lock_name' => $lockName]);
+            }
+        } catch (\Throwable $e) {
+            error_log('Session unlock warning: ' . $e->getMessage());
+        } finally {
+            $this->lockedSessionId = null;
+        }
     }
 }

@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === false || $id === null || !in_array($active, [0, 1], true)) {
             flash('error', 'Data perubahan jamaah tidak valid.');
         } else {
-            $statement = db()->prepare('UPDATE jamaah SET aktif = :aktif WHERE id = :id');
+            $statement = db()->prepare('UPDATE jamaah SET aktif = (CASE WHEN :aktif = 1 THEN TRUE ELSE FALSE END) WHERE id = :id');
             $statement->execute(['aktif' => $active, 'id' => $id]);
             flash('success', $active === 1 ? 'Jamaah berhasil diaktifkan kembali.' : 'Jamaah berhasil diarsipkan.');
         }

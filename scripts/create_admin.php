@@ -21,13 +21,22 @@ if (mb_strlen($name) < 1 || mb_strlen($name) > 120 || strlen($password) < 12) {
     exit(1);
 }
 
-$statement = db()->prepare(
-    "INSERT INTO users (username, password_hash, nama, role)
-     VALUES (:username, :password_hash, :nama, 'admin')"
-);
-$statement->execute([
-    'username' => $username,
-    'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-    'nama' => $name,
-]);
-fwrite(STDOUT, "Akun admin berhasil dibuat.\n");
+try {
+    $statement = db()->prepare(
+        "INSERT INTO users (username, password_hash, nama, role)
+         VALUES (:username, :password_hash, :nama, 'admin')"
+    );
+    $statement->execute([
+        'username' => $username,
+        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+        'nama' => $name,
+    ]);
+    fwrite(STDOUT, "Akun admin berhasil dibuat.\n");
+} catch (\PDOException $e) {
+    if (str_contains($e->getMessage(), 'duplicate') || str_contains($e->getMessage(), 'UNIQUE') || $e->getCode() === '23505' || $e->getCode() === '23000') {
+        fwrite(STDERR, "Gagal: Nama pengguna '{$username}' sudah terdaftar.\n");
+    } else {
+        fwrite(STDERR, "Gagal menyimpan akun: " . $e->getMessage() . "\n");
+    }
+    exit(1);
+}

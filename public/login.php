@@ -12,27 +12,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string) ($_POST['username'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
 
-    $statement = db()->prepare('SELECT id, username, password_hash, nama FROM users WHERE username = :username LIMIT 1');
-    $statement->execute(['username' => $username]);
-    $user = $statement->fetch();
+    try {
+        $statement = db()->prepare('SELECT id, username, password_hash, nama FROM users WHERE username = :username LIMIT 1');
+        $statement->execute(['username' => $username]);
+        $user = $statement->fetch();
 
-    if ($user !== false && password_verify($password, $user['password_hash'])) {
-        if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
-            $update = db()->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
-            $update->execute([
-                'hash' => password_hash($password, PASSWORD_DEFAULT),
-                'id' => $user['id'],
-            ]);
+        if ($user !== false && password_verify($password, $user['password_hash'])) {
+            if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
+                $update = db()->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
+                $update->execute([
+                    'hash' => password_hash($password, PASSWORD_DEFAULT),
+                    'id' => $user['id'],
+                ]);
+            }
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = (int) $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['nama'] = $user['nama'];
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            redirect('dashboard.php');
         }
-        session_regenerate_id(true);
-        $_SESSION['user_id'] = (int) $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['nama'] = $user['nama'];
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        redirect('dashboard.php');
-    }
 
-    $error = 'Nama pengguna atau kata sandi tidak sesuai.';
+        $error = 'Nama pengguna atau kata sandi tidak sesuai.';
+    } catch (\Throwable $e) {
+        $error = 'Gagal terhubung ke database. Periksa konfigurasi koneksi atau skema database.';
+        error_log('Login error: ' . $e->getMessage());
+    }
 }
 ?>
 <!doctype html>
