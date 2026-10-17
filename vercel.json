@@ -7,11 +7,11 @@
   "routes": [
     {
       "src": "^/favicon\\.ico$",
-      "dest": "/public/favicon.svg"
+      "dest": "/api/favicon.php"
     },
     {
       "src": "^/favicon\\.svg$",
-      "dest": "/public/favicon.svg"
+      "dest": "/api/favicon.php"
     },
     {
       "src": "/assets/(.*)",
