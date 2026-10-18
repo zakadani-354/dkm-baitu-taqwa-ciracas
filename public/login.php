@@ -57,12 +57,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p class="muted">Gunakan akun pengurus yang telah terdaftar.</p>
     <?php if ($error !== null): ?><div class="alert alert-error" role="alert"><?= e($error) ?></div><?php endif; ?>
     <?php $flash = take_flash(); if ($flash !== null): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['message']) ?></div><?php endif; ?>
-    <form method="post" action="login.php" class="form-stack">
+    <form method="post" action="login.php" class="form-stack" id="loginForm">
         <?= csrf_field() ?>
         <label>Nama pengguna<input name="username" autocomplete="username" required maxlength="50" autofocus></label>
         <label>Kata sandi<input type="password" name="password" autocomplete="current-password" required></label>
         <button class="button button-primary button-wide" type="submit">Masuk</button>
     </form>
+    <p class="signup-link">Belum punya akun? <a href="daftar.php">Daftar di sini</a></p>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('loginForm');
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            const username = form.querySelector('input[name="username"]').value.trim();
+            const password = form.querySelector('input[name="password"]').value;
+            if (!username || !password) {
+                event.preventDefault();
+                if (!username) {
+                    form.querySelector('input[name="username"]').focus();
+                } else {
+                    form.querySelector('input[name="password"]').focus();
+                }
+                alert('Nama pengguna dan kata sandi wajib diisi.');
+                return;
+            }
+        });
+    }
+});
+</script>
 </body>
 </html>

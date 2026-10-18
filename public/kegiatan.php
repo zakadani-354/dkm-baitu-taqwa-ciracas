@@ -3,12 +3,12 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/layout.php';
-require_login();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
     if ($action === 'add') {
+        require_admin();
         $nama = trim((string) ($_POST['nama'] ?? ''));
         $deskripsi = trim((string) ($_POST['deskripsi'] ?? ''));
         if ($nama === '' || mb_strlen($nama) > 160 || mb_strlen($deskripsi) > 500) {
@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('kegiatan.php');
     }
     if ($action === 'toggle') {
+        require_admin();
         $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         $active = filter_var($_POST['aktif'] ?? '', FILTER_VALIDATE_INT);
         if ($id === false || $id === null || !in_array($active, [0, 1], true)) {

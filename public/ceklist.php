@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/layout.php';
-require_login();
 
 $month = (string) ($_GET['bulan'] ?? date('Y-m'));
 if (!valid_month($month)) {
@@ -20,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         || !in_array($status, ['Belum Selesai', 'Selesai'], true)) {
         flash('error', 'Perubahan ceklist tidak valid.');
     } else {
+        require_admin();
         $statement = db()->prepare('UPDATE ceklist SET status = :status, diperbarui_oleh = :user_id WHERE id = :id AND bulan = :bulan');
         $statement->execute(['status' => $status, 'user_id' => $_SESSION['user_id'], 'id' => $checklistId, 'bulan' => $postedMonth . '-01']);
         flash('success', $statement->rowCount() > 0 ? 'Status kegiatan diperbarui.' : 'Status kegiatan tidak berubah atau kegiatan tidak ditemukan.');

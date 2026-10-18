@@ -23,6 +23,18 @@ function require_login(): void
     }
 }
 
+function require_admin(): void
+{
+    require_login();
+    $statement = db()->prepare('SELECT role FROM users WHERE id = :id');
+    $statement->execute(['id' => (int) $_SESSION['user_id']]);
+    $user = $statement->fetch();
+    if (!$user || $user['role'] !== 'admin') {
+        flash('error', 'Akses ditolak. Admin saja yang bisa mengelola data.');
+        redirect('dashboard.php');
+    }
+}
+
 function csrf_field(): string
 {
     return '<input type="hidden" name="csrf_token" value="' . e($_SESSION['csrf_token'] ?? '') . '">';

@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/layout.php';
-require_login();
 
 $categories = ['Umum', 'Generus', 'Ibu-ibu'];
 $editing = null;
@@ -17,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
     if ($action === 'save') {
+        require_admin();
         $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         $nama = trim((string) ($_POST['nama'] ?? ''));
         $kategori = (string) ($_POST['kategori'] ?? '');
@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('jamaah.php');
     }
     if ($action === 'set-active') {
+        require_admin();
         $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         $active = filter_var($_POST['aktif'] ?? '', FILTER_VALIDATE_INT);
         if ($id === false || $id === null || !in_array($active, [0, 1], true)) {
