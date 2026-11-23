@@ -146,6 +146,18 @@ window.DKM = {
 
 window.Home = {
   channel: null,
+  heroMarkup(mosque = {}) {
+    const name = mosque.nama_masjid || 'Masjid Baitu Taqwa';
+    const address = mosque.alamat || 'Ciracas, Jakarta Timur';
+    return `<section class="card hero">
+      <img class="hero-photo" src="masjid_home.jpeg" alt="Tampak depan Masjid Baitu Taqwa">
+      <div class="hero-overlay"></div>
+      <div class="hero-copy"><p class="eyebrow">Ruang ibadah dan kebersamaan</p>
+        <h2 id="heroName" class="text-3xl font-light sm:text-5xl">${DKM.escape(name)}</h2>
+        <p id="heroAddress" class="mt-3 max-w-lg text-sm leading-6 text-white/90">${DKM.escape(address)}</p>
+      </div>
+    </section>`;
+  },
   async render(root) {
     this.stopRealtime();
     const publicHome = !DKM.signedIn;
@@ -158,18 +170,18 @@ window.Home = {
           ? '<button class="btn-primary" data-action="open-login">Login Pengurus/Admin</button>'
           : `<button class="btn-secondary" data-action="logout">${DKM.icon('log-out')}Keluar</button>`}
       </header>
-      <div id="homeBody"></div>
+      <div id="homeBody">${this.heroMarkup()}<div id="homeStats"></div></div>
     </div>`;
-    const body = document.getElementById('homeBody');
+    const statsHost = document.getElementById('homeStats');
     if (!window.supabaseClient) {
-      body.innerHTML = `<section class="card card-pad"><h2 class="font-semibold">Hubungkan Supabase</h2>
+      statsHost.innerHTML = `<section class="card card-pad mt-5"><h2 class="font-semibold">Hubungkan Supabase</h2>
         <p class="mt-2 text-sm text-muted">Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> pada <code>js/supabase-client.js</code>, lalu jalankan <code>database.sql</code> di SQL Editor.</p></section>`;
       return;
     }
     try {
       const client = DKM.ready();
       const [{ data: profile, error: profileError }, { data: stats, error: statsError }] = await Promise.all([
-        client.from('profil_masjid').select('nama_masjid,alamat,foto_masjid_url').limit(1).maybeSingle(),
+        client.from('profil_masjid').select('nama_masjid,alamat').limit(1).maybeSingle(),
         client.rpc('public_home_stats')
       ]);
       if (profileError) throw profileError;
@@ -177,17 +189,15 @@ window.Home = {
       const mosque = profile || { nama_masjid: 'Masjid Baitu Taqwa', alamat: 'Ciracas, Jakarta Timur' };
       document.getElementById('homeName').textContent = mosque.nama_masjid;
       document.getElementById('homeAddress').textContent = mosque.alamat || '';
+      document.getElementById('heroName').textContent = mosque.nama_masjid || 'Masjid Baitu Taqwa';
+      document.getElementById('heroAddress').textContent = mosque.alamat || 'Ciracas, Jakarta Timur';
       const age = stats?.usia || {}, status = stats?.status || {};
       const mappings = [
         ['PAUD', age.PAUD || 0], ['SD', age.SD || 0], ['SMP', age.SMP || 0], ['SMA', age.SMA || 0],
         ['Pra Nikah', age['Pra Nikah'] || 0], ['Menikah', (status.Kawin || 0) + (status.Menikah || 0)],
         ['Janda', status.Janda || 0], ['Duda', status.Duda || 0]
       ];
-      body.innerHTML = `
-        <section class="card hero">${mosque.foto_masjid_url ? `<img class="hero-photo" src="${DKM.escape(mosque.foto_masjid_url)}" alt="Foto masjid"><div class="hero-overlay"></div>` : ''}
-          <div class="hero-copy"><p class="eyebrow">Ruang ibadah dan kebersamaan</p><h2 class="text-3xl font-light sm:text-5xl">${DKM.escape(mosque.nama_masjid)}</h2>
-          <p class="mt-3 max-w-lg text-sm leading-6 text-white/90">${DKM.escape(mosque.alamat || 'Masjid Baitu Taqwa, Ciracas.')}</p></div>
-        </section>
+      statsHost.innerHTML = `
         <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">${mappings.map(([name, count]) => `
           <article class="card stat-card"><p class="stat-label">${name}</p><p class="stat-value">${Number(count).toLocaleString('id-ID')}</p></article>`).join('')}</section>
         <section class="card stat-card flex items-center justify-between"><div><p class="stat-label">Total Jamaah Terdaftar</p><p class="stat-value">${Number(stats?.total || 0).toLocaleString('id-ID')}</p></div><div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('users')}</div></section>`;
@@ -199,7 +209,7 @@ window.Home = {
       }
     } catch (error) {
       console.error(error);
-      body.innerHTML = `<section class="card card-pad"><h2 class="font-semibold">Data belum tersedia</h2><p class="mt-2 text-sm text-muted">${DKM.escape(error.message || 'Periksa konfigurasi Supabase dan jalankan database.sql.')}</p></section>`;
+      statsHost.innerHTML = `<section class="card card-pad mt-5"><h2 class="font-semibold">Data belum tersedia</h2><p class="mt-2 text-sm text-muted">${DKM.escape(error.message || 'Periksa konfigurasi Supabase dan jalankan database.sql.')}</p></section>`;
     }
   },
   stopRealtime() {
