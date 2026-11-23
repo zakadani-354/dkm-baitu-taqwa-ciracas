@@ -13,7 +13,7 @@ button{cursor:pointer}
 .sidebar{position:fixed;inset:0 auto 0 0;z-index:20;display:flex;width:252px;flex-direction:column;border-right:1px solid var(--line);background:#F8F5EF;padding:22px 16px}
 .main-content{min-height:100vh;margin-left:252px;padding:32px clamp(18px,3vw,48px) 48px}
 .brand{display:flex;align-items:center;gap:12px;padding:4px 8px 26px}
-.brand-mark{display:grid;width:44px;height:44px;place-items:center;border-radius:50%;background:var(--sage);color:#fff}
+.brand-mark{display:block;width:44px;height:44px;flex:none;border-radius:50%;object-fit:contain}
 .nav-list{display:grid;gap:5px}
 .nav-item{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:13px;background:transparent;padding:11px 12px;color:var(--muted);text-align:left;transition:background .18s,color .18s}
 .nav-item:hover{background:#ECE9E2;color:var(--charcoal)}

@@ -92,7 +92,7 @@ window.DKM = {
     const navItems = items.map(item => `<button class="nav-item ${this.route === item.id ? 'active' : ''}" data-route="${item.id}">
       ${this.icon(item.icon)}<span>${item.title}</span></button>`).join('');
     document.getElementById('sidebar').innerHTML = `
-      <div class="brand"><div class="brand-mark">${this.icon('landmark')}</div><div><div class="text-xs text-muted">DKM</div><div class="font-semibold">Baitu Taqwa</div></div></div>
+      <div class="brand"><img class="brand-mark" src="logo.png" alt="Logo Masjid Baitu Taqwa"><div><div class="text-xs text-muted">DKM</div><div class="font-semibold">Baitu Taqwa</div></div></div>
       <nav class="nav-list" aria-label="Navigasi utama">${navItems}</nav>
       <div class="sidebar-foot">
         <p class="truncate px-3 pb-2 text-xs text-muted">${this.signedIn ? `${this.escape(this.user.nama_lengkap)} · ${this.user.role}` : 'Informasi publik'}</p>
@@ -151,7 +151,7 @@ window.Home = {
     const publicHome = !DKM.signedIn;
     root.innerHTML = `<div class="page-wrap">
       <header class="mb-6 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3"><div id="homeLogo" class="brand-mark">${DKM.icon('landmark')}</div>
+        <div class="flex items-center gap-3"><img id="homeLogo" class="brand-mark" src="logo.png" alt="Logo Masjid Baitu Taqwa">
           <div><p class="text-xs text-muted">DKM MASJID</p><h1 id="homeName" class="text-lg font-semibold">Baitu Taqwa</h1><p id="homeAddress" class="text-xs text-muted"></p></div>
         </div>
         ${publicHome
@@ -169,7 +169,7 @@ window.Home = {
     try {
       const client = DKM.ready();
       const [{ data: profile, error: profileError }, { data: stats, error: statsError }] = await Promise.all([
-        client.from('profil_masjid').select('nama_masjid,alamat,logo_url,foto_masjid_url').limit(1).maybeSingle(),
+        client.from('profil_masjid').select('nama_masjid,alamat,foto_masjid_url').limit(1).maybeSingle(),
         client.rpc('public_home_stats')
       ]);
       if (profileError) throw profileError;
@@ -177,7 +177,6 @@ window.Home = {
       const mosque = profile || { nama_masjid: 'Masjid Baitu Taqwa', alamat: 'Ciracas, Jakarta Timur' };
       document.getElementById('homeName').textContent = mosque.nama_masjid;
       document.getElementById('homeAddress').textContent = mosque.alamat || '';
-      if (mosque.logo_url) document.getElementById('homeLogo').innerHTML = `<img src="${DKM.escape(mosque.logo_url)}" alt="" class="h-full w-full rounded-full object-cover">`;
       const age = stats?.usia || {}, status = stats?.status || {};
       const mappings = [
         ['PAUD', age.PAUD || 0], ['SD', age.SD || 0], ['SMP', age.SMP || 0], ['SMA', age.SMA || 0],
