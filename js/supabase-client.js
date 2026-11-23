@@ -1,3 +1,4 @@
+// Only use a public anon/publishable key here; never put a service_role key in the browser.
 window.SUPABASE_URL = 'https://mhcdqubmuallchvpdvdq.supabase.co';
 window.SUPABASE_ANON_KEY = 'sb_publishable_Tia2al7otnpgx-f03XciUw_6YSivOJL';
 
