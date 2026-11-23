@@ -1,0 +1,214 @@
+window.DKM = {
+  route: 'home',
+  role: null,
+  user: null,
+  toastTimer: null,
+  menu: [
+    { id: 'home', title: 'Beranda', icon: 'house' },
+    { id: 'presensi', title: 'Presensi', icon: 'clipboard-check', auth: true },
+    { id: 'materi', title: 'Materi', icon: 'book-open', auth: true },
+    { id: 'jamaah', title: 'Database Jamaah', icon: 'users', auth: true },
+    { id: 'program', title: 'Program Masjid', icon: 'calendar-days', auth: true },
+    { id: 'akun', title: 'Kelola Akun', icon: 'contact-round', auth: true, admin: true }
+  ],
+  escape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  },
+  get isAdmin() { return this.role === 'admin'; },
+  get signedIn() { return Boolean(this.user); },
+  ready() {
+    if (!window.supabaseClient) throw new Error('Supabase belum dikonfigurasi. Isi URL dan anon key di js/supabase-client.js.');
+    return window.supabaseClient;
+  },
+  toast(message, type = 'info') {
+    const node = document.getElementById('toast');
+    node.textContent = message;
+    node.dataset.type = type;
+    node.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => node.classList.remove('show'), 3200);
+  },
+  loading(show, text = 'Memuat...') {
+    const node = document.getElementById('loading');
+    document.getElementById('loadingText').textContent = text;
+    node.hidden = !show;
+  },
+  async run(task, label = 'Memuat...') {
+    this.loading(true, label);
+    try { return await task(); }
+    catch (error) {
+      console.error(error);
+      this.toast(error.message || 'Terjadi kesalahan saat menghubungi Supabase.', 'error');
+      throw error;
+    } finally { this.loading(false); }
+  },
+  formatDate(value, options = { day: 'numeric', month: 'short', year: 'numeric' }) {
+    if (!value) return '-';
+    const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('id-ID', options);
+  },
+  today() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  },
+  monthValue(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  },
+  monthBounds(value) {
+    const [year, month] = value.split('-').map(Number);
+    const last = new Date(year, month, 0);
+    return { from: `${value}-01`, to: `${year}-${String(month).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
+  },
+  icon(name, classes = '') { return `<i data-lucide="${name}" class="${classes}" aria-hidden="true"></i>`; },
+  refreshIcons() { if (window.lucide) window.lucide.createIcons(); },
+  setRoute(route) {
+    const item = this.menu.find(entry => entry.id === route);
+    if (!item) return;
+    if (item.auth && !this.signedIn) {
+      const needsHome = this.route !== 'home' || !document.getElementById('homeBody');
+      this.route = 'home';
+      history.replaceState(null, '', '#home');
+      if (needsHome) {
+        this.renderNavigation();
+        this.renderRoute();
+      }
+      Auth.openLogin();
+      return;
+    }
+    if (item.admin && !this.isAdmin) { this.navigate('home'); return; }
+    if (this.route === 'home' && route !== 'home') Home.stopRealtime();
+    this.route = route;
+    history.replaceState(null, '', `#${route}`);
+    this.renderNavigation();
+    this.renderRoute();
+  },
+  navigate(route) {
+    this.setRoute(route);
+  },
+  renderNavigation() {
+    const items = this.menu.filter(item => (!item.auth || this.signedIn) && (!item.admin || this.isAdmin));
+    const navItems = items.map(item => `<button class="nav-item ${this.route === item.id ? 'active' : ''}" data-route="${item.id}">
+      ${this.icon(item.icon)}<span>${item.title}</span></button>`).join('');
+    document.getElementById('sidebar').innerHTML = `
+      <div class="brand"><div class="brand-mark">${this.icon('landmark')}</div><div><div class="text-xs text-muted">DKM</div><div class="font-semibold">Baitu Taqwa</div></div></div>
+      <nav class="nav-list" aria-label="Navigasi utama">${navItems}</nav>
+      <div class="sidebar-foot">
+        <p class="truncate px-3 pb-2 text-xs text-muted">${this.signedIn ? `${this.escape(this.user.nama_lengkap)} · ${this.user.role}` : 'Informasi publik'}</p>
+        ${this.signedIn ? '<button class="nav-item w-full" data-action="logout"><i data-lucide="log-out"></i><span>Keluar</span></button>' : '<button class="nav-item w-full" data-action="open-login"><i data-lucide="log-in"></i><span>Login Pengurus</span></button>'}
+      </div>`;
+    const bottomNav = document.getElementById('bottomNav');
+    bottomNav.classList.toggle('has-admin-nav', items.some(item => item.id === 'akun'));
+    bottomNav.innerHTML = items.map(item =>
+      `<button class="${this.route === item.id ? 'active' : ''}" data-route="${item.id}">${this.icon(item.icon)}<span>${item.id === 'jamaah' ? 'Jamaah' : item.title}</span></button>`
+    ).join('');
+    this.refreshIcons();
+  },
+  async renderRoute() {
+    const root = document.getElementById('app');
+    try {
+      if (this.route === 'home') await Home.render(root);
+      else if (this.route === 'jamaah') await Jamaah.render(root);
+      else if (this.route === 'presensi') await Presensi.render(root);
+      else if (this.route === 'materi') await Materi.render(root);
+      else if (this.route === 'program') await Program.render(root);
+      else if (this.route === 'akun') await Akun.render(root);
+    } catch (error) {
+      root.innerHTML = `<section class="card card-pad"><h2 class="font-semibold">Halaman gagal dimuat</h2><p class="mt-2 text-sm text-muted">${this.escape(error.message)}</p></section>`;
+    }
+    this.refreshIcons();
+  },
+  async start() {
+    document.addEventListener('click', event => {
+      const routeButton = event.target.closest('[data-route]');
+      if (routeButton) { this.navigate(routeButton.dataset.route); return; }
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (action === 'open-login') Auth.openLogin();
+      if (action === 'close-login') Auth.closeLogin();
+      if (action === 'logout') Auth.logout();
+    });
+    document.getElementById('loginForm').addEventListener('submit', event => Auth.submit(event));
+    try { await Auth.init(); }
+    catch (error) {
+      console.error(error);
+      this.toast(`Sesi tidak dapat dimuat: ${error.message}`,'error');
+      this.renderNavigation();
+    }
+    const initial = location.hash.slice(1);
+    this.navigate(this.menu.some(item => item.id === initial) ? initial : 'home');
+    window.addEventListener('hashchange', () => {
+      const hash = location.hash.slice(1);
+      if (hash && hash !== this.route) this.navigate(hash);
+    });
+  }
+};
+
+window.Home = {
+  channel: null,
+  async render(root) {
+    this.stopRealtime();
+    const publicHome = !DKM.signedIn;
+    root.innerHTML = `<div class="page-wrap">
+      <header class="mb-6 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3"><div id="homeLogo" class="brand-mark">${DKM.icon('landmark')}</div>
+          <div><p class="text-xs text-muted">DKM MASJID</p><h1 id="homeName" class="text-lg font-semibold">Baitu Taqwa</h1><p id="homeAddress" class="text-xs text-muted"></p></div>
+        </div>
+        ${publicHome
+          ? '<button class="btn-primary" data-action="open-login">Login Pengurus/Admin</button>'
+          : `<button class="btn-secondary" data-action="logout">${DKM.icon('log-out')}Keluar</button>`}
+      </header>
+      <div id="homeBody"></div>
+    </div>`;
+    const body = document.getElementById('homeBody');
+    if (!window.supabaseClient) {
+      body.innerHTML = `<section class="card card-pad"><h2 class="font-semibold">Hubungkan Supabase</h2>
+        <p class="mt-2 text-sm text-muted">Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> pada <code>js/supabase-client.js</code>, lalu jalankan <code>database.sql</code> di SQL Editor.</p></section>`;
+      return;
+    }
+    try {
+      const client = DKM.ready();
+      const [{ data: profile, error: profileError }, { data: stats, error: statsError }] = await Promise.all([
+        client.from('profil_masjid').select('nama_masjid,alamat,logo_url,foto_masjid_url').limit(1).maybeSingle(),
+        client.rpc('public_home_stats')
+      ]);
+      if (profileError) throw profileError;
+      if (statsError) throw statsError;
+      const mosque = profile || { nama_masjid: 'Masjid Baitu Taqwa', alamat: 'Ciracas, Jakarta Timur' };
+      document.getElementById('homeName').textContent = mosque.nama_masjid;
+      document.getElementById('homeAddress').textContent = mosque.alamat || '';
+      if (mosque.logo_url) document.getElementById('homeLogo').innerHTML = `<img src="${DKM.escape(mosque.logo_url)}" alt="" class="h-full w-full rounded-full object-cover">`;
+      const age = stats?.usia || {}, status = stats?.status || {};
+      const mappings = [
+        ['PAUD', age.PAUD || 0], ['SD', age.SD || 0], ['SMP', age.SMP || 0], ['SMA', age.SMA || 0],
+        ['Pra Nikah', age['Pra Nikah'] || 0], ['Menikah', (status.Kawin || 0) + (status.Menikah || 0)],
+        ['Janda', status.Janda || 0], ['Duda', status.Duda || 0]
+      ];
+      body.innerHTML = `
+        <section class="card hero">${mosque.foto_masjid_url ? `<img class="hero-photo" src="${DKM.escape(mosque.foto_masjid_url)}" alt="Foto masjid"><div class="hero-overlay"></div>` : ''}
+          <div class="hero-copy"><p class="eyebrow">Ruang ibadah dan kebersamaan</p><h2 class="text-3xl font-light sm:text-5xl">${DKM.escape(mosque.nama_masjid)}</h2>
+          <p class="mt-3 max-w-lg text-sm leading-6 text-white/90">${DKM.escape(mosque.alamat || 'Masjid Baitu Taqwa, Ciracas.')}</p></div>
+        </section>
+        <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">${mappings.map(([name, count]) => `
+          <article class="card stat-card"><p class="stat-label">${name}</p><p class="stat-value">${Number(count).toLocaleString('id-ID')}</p></article>`).join('')}</section>
+        <section class="card stat-card flex items-center justify-between"><div><p class="stat-label">Total Jamaah Terdaftar</p><p class="stat-value">${Number(stats?.total || 0).toLocaleString('id-ID')}</p></div><div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('users')}</div></section>`;
+      if (publicHome && client.channel) {
+        this.channel = client.channel('public-home')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'statistik_jamaah_public' }, () => this.render(document.getElementById('app')))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'profil_masjid' }, () => this.render(document.getElementById('app')))
+          .subscribe();
+      }
+    } catch (error) {
+      console.error(error);
+      body.innerHTML = `<section class="card card-pad"><h2 class="font-semibold">Data belum tersedia</h2><p class="mt-2 text-sm text-muted">${DKM.escape(error.message || 'Periksa konfigurasi Supabase dan jalankan database.sql.')}</p></section>`;
+    }
+  },
+  stopRealtime() {
+    if (this.channel && window.supabaseClient) {
+      window.supabaseClient.removeChannel(this.channel);
+      this.channel = null;
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => DKM.start());
