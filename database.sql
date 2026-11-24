@@ -32,11 +32,15 @@ create table if not exists public.jamaah (
   status_pernikahan text check (status_pernikahan in ('Janda','Duda','Kawin','Belum Kawin')),
   umur int check (umur is null or umur >= 0),
   kelompok_umur text check (kelompok_umur in ('PAUD','SD','SMP','SMA','Pra Nikah','Dewasa')),
-  status_nikah text check (status_nikah in ('Menikah','Belum Menikah')),
+  status_nikah text check (status_nikah in ('Menikah','Belum Menikah','Janda','Duda')),
   pekerjaan text,
   penghasilan text,
   created_at timestamptz not null default now()
 );
+
+alter table public.jamaah drop constraint if exists jamaah_status_nikah_check;
+alter table public.jamaah add constraint jamaah_status_nikah_check
+  check (status_nikah in ('Menikah','Belum Menikah','Janda','Duda'));
 
 -- A safe aggregate snapshot lets the public home page update live without
 -- exposing individual jamaah records to the anon role.

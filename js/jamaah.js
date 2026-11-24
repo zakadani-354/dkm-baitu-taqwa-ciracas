@@ -112,7 +112,7 @@ window.Jamaah = {
         <label class="field-label">Jenis Kelamin<select class="select mt-1" name="jenis_kelamin">${this.options(['Laki-laki','Perempuan'],row.jenis_kelamin,true)}</select></label>
         <label class="field-label">Hubungan Keluarga<select class="select mt-1" name="status_keluarga">${this.options(['Kepala Keluarga','Istri','Anak','Famili Lain'],row.status_keluarga,true)}</select></label>
         <label class="field-label">Status Pernikahan<select class="select mt-1" name="status_pernikahan">${this.options(['Belum Kawin','Kawin','Janda','Duda'],row.status_pernikahan,true)}</select></label>
-        <label class="field-label">Status Nikah<select class="select mt-1" name="status_nikah">${this.options(['Belum Menikah','Menikah'],row.status_nikah,true)}</select></label>
+        <label class="field-label">Status Nikah<select class="select mt-1" name="status_nikah">${this.options(['Belum Menikah','Menikah','Janda','Duda'],row.status_nikah,true)}</select></label>
         <label class="field-label">Pekerjaan<input class="input mt-1" name="pekerjaan" value="${DKM.escape(row.pekerjaan)}"></label>
         <label class="field-label span-2">Penghasilan per Bulan<input class="input mt-1" name="penghasilan" value="${DKM.escape(row.penghasilan)}"></label>
       </div>
@@ -256,7 +256,7 @@ window.Jamaah = {
           status_keluarga: this.normalizeChoice(this.rowValue(row, ['status_keluarga', 'hubungan_keluarga', 'hubungan keluarga']), ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain'], { kk: 'Kepala Keluarga', 'kepala keluarga': 'Kepala Keluarga', famili: 'Famili Lain', 'famili lain': 'Famili Lain' }),
           status_pernikahan: this.normalizeChoice(this.rowValue(row, ['status_pernikahan', 'status_pernikahan']), ['Janda', 'Duda', 'Kawin', 'Belum Kawin'], { kawin: 'Kawin', menikah: 'Kawin', 'belum menikah': 'Belum Kawin', 'belum kawin': 'Belum Kawin' }),
           kelompok_umur: this.normalizeChoice(this.rowValue(row, ['kelompok_umur', 'kelompok umur']) || this.groupFor(age), ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']),
-          status_nikah: this.normalizeChoice(this.rowValue(row, ['status_nikah', 'status nikah']), ['Menikah', 'Belum Menikah'], { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }),
+          status_nikah: this.normalizeChoice(this.rowValue(row, ['status_nikah', 'status nikah']), ['Menikah', 'Belum Menikah', 'Janda', 'Duda'], { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }),
           pekerjaan: String(this.rowValue(row, ['pekerjaan']) || '').trim() || null,
           penghasilan: String(this.rowValue(row, ['penghasilan', 'penghasilan_per_bulan', 'penghasilan per bulan']) || '').trim() || null
         };
@@ -270,7 +270,7 @@ window.Jamaah = {
         ['Status keluarga', 'status_keluarga', ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain']],
         ['Status pernikahan', 'status_pernikahan', ['Janda', 'Duda', 'Kawin', 'Belum Kawin']],
         ['Kelompok umur', 'kelompok_umur', ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']],
-        ['Status nikah', 'status_nikah', ['Menikah', 'Belum Menikah']]
+        ['Status nikah', 'status_nikah', ['Menikah', 'Belum Menikah', 'Janda', 'Duda']]
       ];
       for (const row of rows) {
         for (const [label, field, choices] of validations) {
