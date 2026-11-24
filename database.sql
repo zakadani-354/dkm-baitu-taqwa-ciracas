@@ -127,6 +127,11 @@ create table if not exists public.presensi_detail (
   unique (sesi_id, jamaah_id)
 );
 
+alter table public.presensi_detail drop constraint if exists presensi_detail_status_check;
+update public.presensi_detail set status = 'Alpha' where status = 'Tidak Hadir';
+alter table public.presensi_detail add constraint presensi_detail_status_check
+  check (status in ('Hadir','Izin','Sakit','Alpha'));
+
 create table if not exists public.materi_pengajian (
   id uuid primary key default gen_random_uuid(),
   tanggal date not null,

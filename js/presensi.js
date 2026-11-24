@@ -106,7 +106,7 @@ window.Presensi = {
     list.innerHTML = people.length ? people.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
       <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) || '-')}</p></div>
       <select class="select status-select" data-status-for="${person.id}" aria-label="Status ${DKM.escape(person.nama_lengkap)}">
-        <option>Hadir</option><option>Tidak Hadir</option><option>Izin</option></select>
+        <option>Hadir</option><option>Izin</option><option>Sakit</option><option>Alpha</option></select>
     </div>`).join('') : '<div class="empty-state">Tidak ada jamaah sesuai kategori ini.</div>';
     if (save) save.hidden = people.length === 0;
   },
@@ -260,7 +260,10 @@ window.Presensi = {
       ]},options:{responsive:true,plugins:{legend:{position:'bottom'}}}
     });
     this.chartDonut = new Chart(document.getElementById('attendanceDonut'),{
-      type:'doughnut',data:{labels:['Hadir','Tidak hadir / Izin'],datasets:[{data:[present,Math.max(0,required-present)],backgroundColor:['#667F6E','#C9BDAF']}]},
+      type:'doughnut',data:{labels:['Hadir','Izin','Sakit','Alpha'],datasets:[{
+        data:['Hadir','Izin','Sakit','Alpha'].map(status => details.filter(detail => detail.status === status).length),
+        backgroundColor:['#667F6E','#D9B56D','#8FA8C2','#C98278']
+      }]},
       options:{responsive:true,plugins:{legend:{position:'bottom'}}}
     });
   },
@@ -295,7 +298,7 @@ window.Presensi = {
     document.getElementById('presensiView').innerHTML = `<section class="card card-pad mb-4"><div class="flex max-w-lg flex-wrap items-end gap-3">
       <label class="field-label flex-1">Bulan<input id="hasdaMonth" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
       <button id="hasdaRefresh" class="btn-secondary">Tampilkan</button></div></section>
-      <section class="card card-pad"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Jamaah tidak hadir pada Pengajian Umum HASDA</h2><button id="copyHasda" class="btn-primary">${DKM.icon('copy')}Salin Teks</button></div>
+      <section class="card card-pad"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Jamaah Alpha pada Pengajian Umum HASDA</h2><button id="copyHasda" class="btn-primary">${DKM.icon('copy')}Salin Teks</button></div>
       <pre id="hasdaMessage" class="whitespace-pre-wrap rounded-xl border border-[#E6E0D6] bg-[#F7F4EF] p-4 text-sm leading-6"></pre>
       <div id="hasdaPeople" class="mt-4"></div></section>`;
     document.getElementById('hasdaRefresh').addEventListener('click',() => this.loadHasda());
@@ -312,17 +315,17 @@ window.Presensi = {
     if (error) throw error;
     const missed = new Map();
     (data || []).forEach(session => (session.presensi_detail || []).forEach(detail => {
-      if (detail.status === 'Tidak Hadir' && detail.jamaah?.nama_lengkap) {
+      if (detail.status === 'Alpha' && detail.jamaah?.nama_lengkap) {
         const name = detail.jamaah.nama_lengkap;
         missed.set(name,(missed.get(name) || 0) + 1);
       }
     }));
     const names = [...missed.keys()].sort((a,b) => a.localeCompare(b,'id'));
-    this.hasdaMessage = `Assalamu'alaikum.\n\nDaftar susulan Pengajian Umum HASDA bulan ${month || '-'}:\n${names.length ? names.map((name,index) => `${index + 1}. ${name}${missed.get(name) > 1 ? ` (${missed.get(name)} kali)` : ''}`).join('\n') : 'Tidak ada jamaah dengan status Tidak Hadir.'}\n\nMohon ditindaklanjuti. Terima kasih.`;
+    this.hasdaMessage = `Assalamu'alaikum.\n\nDaftar susulan Pengajian Umum HASDA bulan ${month || '-'}:\n${names.length ? names.map((name,index) => `${index + 1}. ${name}${missed.get(name) > 1 ? ` (${missed.get(name)} kali)` : ''}`).join('\n') : 'Tidak ada jamaah dengan status Alpha.'}\n\nMohon ditindaklanjuti. Terima kasih.`;
     document.getElementById('hasdaMessage').textContent = this.hasdaMessage;
     document.getElementById('hasdaPeople').innerHTML = names.length
-      ? `<p class="text-sm text-muted">${names.length} jamaah tercatat tidak hadir.</p>`
-      : '<p class="text-sm text-muted">Tidak ada jamaah yang tercatat tidak hadir pada bulan ini.</p>';
+      ? `<p class="text-sm text-muted">${names.length} jamaah tercatat Alpha.</p>`
+      : '<p class="text-sm text-muted">Tidak ada jamaah yang tercatat Alpha pada bulan ini.</p>';
   },
   async copyHasda() {
     try { await navigator.clipboard.writeText(this.hasdaMessage); DKM.toast('Teks HASDA disalin.'); }
