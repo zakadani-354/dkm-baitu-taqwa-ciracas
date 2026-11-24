@@ -70,33 +70,29 @@ window.Presensi = {
   async loadCandidates() {
     if (!DKM.isAdmin) return;
     const type = document.getElementById('attendanceType').value;
-    let query = DKM.ready().from('jamaah').select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin').order('nama_lengkap');
+    let query = DKM.ready().from('jamaah')
+      .select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin,tanggal_lahir,umur')
+      .order('nama_lengkap');
     if (type === 'Pengajian Ibu-Ibu') query = query.eq('jenis_kelamin','Perempuan');
-    if (type === 'Pembinaan Generus') {
-      const selectedClass = document.getElementById('attendanceClass').value;
-      if (selectedClass === 'PN') {
-        query = query.in('kelompok_umur', [
-          'PN-Pra Nikah (19-30 Tahun belum menikah)',
-          'PN-Dewasa (Diatas 30 Tahun yang belum menikah)'
-        ]);
-      } else {
-        const group = selectedClass === 'SMP'
-          ? 'SMP-Pra Remaja (13-15 Tahun)'
-          : 'SMA-Remaja (16-18 Tahun)';
-        query = query.eq('kelompok_umur',group);
-      }
-    }
     const { data, error } = await DKM.run(() => query, 'Memuat daftar jamaah...');
     if (error) throw error;
+    let people = data || [];
+    if (type === 'Pembinaan Generus') {
+      const selectedClass = document.getElementById('attendanceClass').value;
+      const groups = selectedClass === 'PN'
+        ? ['PN-Pra Nikah (19-30 Tahun belum menikah)', 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)']
+        : [selectedClass === 'SMP' ? 'SMP-Pra Remaja (13-15 Tahun)' : 'SMA-Remaja (16-18 Tahun)'];
+      people = people.filter(person => groups.includes(Jamaah.classificationFor(person)));
+    }
     const list = document.getElementById('candidateList');
-    document.getElementById('candidateCount').textContent = `${data.length} jamaah`;
-    list.innerHTML = data.length ? data.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(person.kelompok_umur || '-')} · ${DKM.escape(person.status_nikah || person.status_pernikahan || '-')}</p></div>
+    document.getElementById('candidateCount').textContent = `${people.length} jamaah`;
+    list.innerHTML = people.length ? people.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
+      <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(person.status_nikah || person.status_pernikahan || '-')}</p></div>
       <select class="select status-select" data-status-for="${person.id}" aria-label="Status ${DKM.escape(person.nama_lengkap)}">
         <option>Hadir</option><option>Tidak Hadir</option><option>Izin</option></select>
     </div>`).join('') : '<div class="empty-state">Tidak ada jamaah sesuai kategori ini.</div>';
     const save = document.getElementById('saveAttendance');
-    if (save) save.hidden = data.length === 0;
+    if (save) save.hidden = people.length === 0;
   },
   async save() {
     if (!DKM.isAdmin) return;
