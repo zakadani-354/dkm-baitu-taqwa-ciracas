@@ -185,35 +185,102 @@ window.Jamaah = {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'Jamaah');
     XLSX.writeFile(workbook, 'template_jamaah.xlsx');
   },
+  normalizeHeader(value) {
+    return String(value || '')
+      .replace(/^\ufeff/, '')
+      .trim()
+      .toLocaleLowerCase('id')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+  },
+  rowValue(row, names) {
+    const entries = new Map(Object.keys(row).map(key => [this.normalizeHeader(key), row[key]]));
+    for (const name of names) {
+      const value = entries.get(this.normalizeHeader(name));
+      if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+    }
+    return '';
+  },
+  parseBirthDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    }
+    if (typeof value === 'number') {
+      const parsed = XLSX.SSF.parse_date_code(value);
+      if (parsed) return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+    }
+    const text = String(value || '').trim();
+    if (!text) return null;
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+      const [year, month, day] = text.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    const localDate = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (localDate) {
+      const [, dayText, monthText, yearText] = localDate;
+      const day = Number(dayText), month = Number(monthText), year = Number(yearText);
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    return null;
+  },
+  normalizeChoice(value, choices, aliases = {}) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const key = text.toLocaleLowerCase('id').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (Object.prototype.hasOwnProperty.call(aliases, key)) return aliases[key];
+    const match = choices.find(choice => choice.toLocaleLowerCase('id') === key);
+    return match || text;
+  },
   async importFile(file) {
     if (!file) return;
     if (!DKM.isAdmin) return;
     try {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-      const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
-      const rows = rawRows.map(row => {
-        const birthDate = row.tanggal_lahir instanceof Date
-          ? row.tanggal_lahir.toISOString().slice(0, 10)
-          : String(row.tanggal_lahir || '').slice(0, 10);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet) throw new Error('File tidak memiliki sheet yang dapat dibaca.');
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      const rows = rawRows.map((row, index) => {
+        const name = String(this.rowValue(row, ['nama_lengkap', 'nama', 'name'])).trim();
+        const rawBirthDate = this.rowValue(row, ['tanggal_lahir', 'tgl_lahir', 'tanggal lahir']);
+        const birthDate = this.parseBirthDate(rawBirthDate);
         const age = this.ageOf(birthDate);
         return {
-          nama_lengkap: String(row.nama_lengkap || row.nama || '').trim(),
-          tempat_lahir: String(row.tempat_lahir || '').trim() || null,
+          __row: index + 2,
+          __invalid_birth: rawBirthDate !== '' && birthDate === null,
+          nama_lengkap: name,
+          tempat_lahir: String(this.rowValue(row, ['tempat_lahir', 'tempat lahir']) || '').trim() || null,
           tanggal_lahir: birthDate || null, umur: age,
-          jenis_kelamin: row.jenis_kelamin || null,
-          status_keluarga: row.status_keluarga || null,
-          status_pernikahan: row.status_pernikahan || null,
-          kelompok_umur: row.kelompok_umur || this.groupFor(age) || null,
-          status_nikah: row.status_nikah || null,
-          pekerjaan: row.pekerjaan || null, penghasilan: row.penghasilan || null
+          jenis_kelamin: this.normalizeChoice(this.rowValue(row, ['jenis_kelamin', 'jenis kelamin']), ['Laki-laki', 'Perempuan'], { 'laki laki': 'Laki-laki', laki: 'Laki-laki', l: 'Laki-laki', pria: 'Laki-laki', perempuan: 'Perempuan', p: 'Perempuan', wanita: 'Perempuan' }),
+          status_keluarga: this.normalizeChoice(this.rowValue(row, ['status_keluarga', 'hubungan_keluarga', 'hubungan keluarga']), ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain'], { kk: 'Kepala Keluarga', 'kepala keluarga': 'Kepala Keluarga', famili: 'Famili Lain', 'famili lain': 'Famili Lain' }),
+          status_pernikahan: this.normalizeChoice(this.rowValue(row, ['status_pernikahan', 'status_pernikahan']), ['Janda', 'Duda', 'Kawin', 'Belum Kawin'], { kawin: 'Kawin', menikah: 'Kawin', 'belum menikah': 'Belum Kawin', 'belum kawin': 'Belum Kawin' }),
+          kelompok_umur: this.normalizeChoice(this.rowValue(row, ['kelompok_umur', 'kelompok umur']) || this.groupFor(age), ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']),
+          status_nikah: this.normalizeChoice(this.rowValue(row, ['status_nikah', 'status nikah']), ['Menikah', 'Belum Menikah'], { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }),
+          pekerjaan: String(this.rowValue(row, ['pekerjaan']) || '').trim() || null,
+          penghasilan: String(this.rowValue(row, ['penghasilan', 'penghasilan_per_bulan', 'penghasilan per bulan']) || '').trim() || null
         };
       }).filter(row => row.nama_lengkap);
       if (!rows.length) { DKM.toast('Tidak ada baris dengan kolom nama_lengkap.', 'error'); return; }
-      const invalid = rows.find(row => row.jenis_kelamin && !['Laki-laki','Perempuan'].includes(row.jenis_kelamin));
-      if (invalid) throw new Error(`Jenis kelamin tidak valid pada data ${invalid.nama_lengkap}.`);
+      for (const row of rows) {
+        if (row.__invalid_birth) throw new Error(`Tanggal lahir tidak valid pada baris ${row.__row}.`);
+      }
+      const validations = [
+        ['Jenis kelamin', 'jenis_kelamin', ['Laki-laki', 'Perempuan']],
+        ['Status keluarga', 'status_keluarga', ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain']],
+        ['Status pernikahan', 'status_pernikahan', ['Janda', 'Duda', 'Kawin', 'Belum Kawin']],
+        ['Kelompok umur', 'kelompok_umur', ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']],
+        ['Status nikah', 'status_nikah', ['Menikah', 'Belum Menikah']]
+      ];
+      for (const row of rows) {
+        for (const [label, field, choices] of validations) {
+          if (row[field] && !choices.includes(row[field])) throw new Error(`${label} tidak valid pada baris ${row.__row}: "${row[field]}".`);
+        }
+      }
       for (let index = 0; index < rows.length; index += 200) {
+        const batch = rows.slice(index, index + 200).map(({ __row, __invalid_birth, ...row }) => row);
         const { error } = await DKM.run(
-          () => DKM.ready().from('jamaah').insert(rows.slice(index, index + 200)),
+          () => DKM.ready().from('jamaah').insert(batch),
           `Mengimpor ${Math.min(index + 200, rows.length)} dari ${rows.length} jamaah...`
         );
         if (error) throw error;
