@@ -193,14 +193,14 @@ window.Home = {
       document.getElementById('heroAddress').textContent = mosque.alamat || 'Ciracas, Jakarta Timur';
       const age = stats?.usia || {}, status = stats?.status || {};
       const mappings = [
-        ['Usia Dini (0-6 Tahun)', age['Usia Dini (0-6 Tahun)'] || 0],
-        ['Caberawit (7-12 Tahun)', age['Caberawit (7-12 Tahun)'] || 0],
-        ['SMP-Pra Remaja (13-15 Tahun)', age['SMP-Pra Remaja (13-15 Tahun)'] || 0],
-        ['SMA-Remaja (16-18 Tahun)', age['SMA-Remaja (16-18 Tahun)'] || 0],
-        ['PN-Pra Nikah (19-30 Tahun belum menikah)', age['PN-Pra Nikah (19-30 Tahun belum menikah)'] || 0],
-        ['PN-Dewasa (Diatas 30 Tahun yang belum menikah)', age['PN-Dewasa (Diatas 30 Tahun yang belum menikah)'] || 0],
-        ['Menikah', (status.Kawin || 0) + (status.Menikah || 0)],
-        ['Janda', status.Janda || 0], ['Duda', status.Duda || 0]
+        ['USIA DINI (0-6)', age['Usia Dini (0-6 Tahun)'] || 0],
+        ['CABERAWIT (7-12)', age['Caberawit (7-12 Tahun)'] || 0],
+        ['SMP (13-15)', age['SMP-Pra Remaja (13-15 Tahun)'] || 0],
+        ['SMA (16-18)', age['SMA-Remaja (16-18 Tahun)'] || 0],
+        ['PRA NIKAH (19-30)', age['PN-Pra Nikah (19-30 Tahun belum menikah)'] || 0],
+        ['PN-DEWASA (>30)', age['PN-Dewasa (Diatas 30 Tahun yang belum menikah)'] || 0],
+        ['MENIKAH', (status.Kawin || 0) + (status.Menikah || 0)],
+        ['JANDA', status.Janda || 0], ['DUDA', status.Duda || 0]
       ];
       statsHost.innerHTML = `
         <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">${mappings.map(([name, count]) => `
