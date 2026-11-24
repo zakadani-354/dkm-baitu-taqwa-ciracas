@@ -68,7 +68,8 @@ window.DKM = {
     const nextYear = new Date(now.getFullYear() + 1, 0, 1);
     this.dateRefreshTimer = setTimeout(() => {
       if (this.route === 'jamaah') Jamaah.refreshAgeClassification();
-      else if (this.route === 'home' || this.route === 'presensi') this.renderRoute();
+      else if (this.route === 'home') Home.refresh(document.getElementById('app'));
+      else if (this.route === 'presensi') this.renderRoute();
       this.scheduleDateRefresh();
     }, Math.max(1000, nextYear.getTime() - now.getTime()));
   },
@@ -158,6 +159,7 @@ window.DKM = {
 
 window.Home = {
   channel: null,
+  refreshRequest: 0,
   heroMarkup(mosque = {}) {
     const name = mosque.nama_masjid || 'Masjid Baitu Taqwa';
     const address = mosque.alamat || 'Ciracas, Jakarta Timur';
@@ -183,6 +185,7 @@ window.Home = {
           : `<button class="btn-secondary" data-action="logout">${DKM.icon('log-out')}Keluar</button>`}
       </header>
       <div id="homeBody">${this.heroMarkup()}<div id="homeStats"></div></div>
+      <p id="homeStatsError" class="card card-pad mt-5 text-sm text-muted" role="alert" hidden></p>
     </div>`;
     const statsHost = document.getElementById('homeStats');
     if (!window.supabaseClient) {
@@ -190,6 +193,16 @@ window.Home = {
         <p class="mt-2 text-sm text-muted">Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> pada <code>js/supabase-client.js</code>, lalu jalankan <code>database.sql</code> di SQL Editor.</p></section>`;
       return;
     }
+    await this.refresh(root);
+    if (publicHome && window.supabaseClient.channel && DKM.route === 'home') {
+      this.channel = window.supabaseClient.channel('public-home')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'statistik_jamaah_public' }, () => this.refresh(root))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profil_masjid' }, () => this.refresh(root))
+        .subscribe();
+    }
+  },
+  async refresh(root) {
+    const requestId = ++this.refreshRequest;
     try {
       const client = DKM.ready();
       const [{ data: profile, error: profileError }, { data: stats, error: statsError }] = await Promise.all([
@@ -198,38 +211,47 @@ window.Home = {
       ]);
       if (profileError) throw profileError;
       if (statsError) throw statsError;
+      if (requestId !== this.refreshRequest || DKM.route !== 'home') return;
       const mosque = profile || { nama_masjid: 'Masjid Baitu Taqwa', alamat: 'Ciracas, Jakarta Timur' };
-      document.getElementById('homeName').textContent = mosque.nama_masjid;
-      document.getElementById('homeAddress').textContent = mosque.alamat || '';
-      document.getElementById('heroName').textContent = mosque.nama_masjid || 'Masjid Baitu Taqwa';
-      document.getElementById('heroAddress').textContent = mosque.alamat || 'Ciracas, Jakarta Timur';
+      root.querySelector('#homeName').textContent = mosque.nama_masjid;
+      root.querySelector('#homeAddress').textContent = mosque.alamat || '';
+      root.querySelector('#heroName').textContent = mosque.nama_masjid || 'Masjid Baitu Taqwa';
+      root.querySelector('#heroAddress').textContent = mosque.alamat || 'Ciracas, Jakarta Timur';
       const age = stats?.usia || {}, status = stats?.status || {};
       const mappings = [
-        ['USIA DINI (0-6)', age['Usia Dini (0-6 Tahun)'] || 0],
-        ['CABERAWIT (7-12)', age['Caberawit (7-12 Tahun)'] || 0],
-        ['SMP (13-15)', age['SMP-Pra Remaja (13-15 Tahun)'] || 0],
-        ['SMA (16-18)', age['SMA-Remaja (16-18 Tahun)'] || 0],
-        ['PRA NIKAH (19-30)', age['PN-Pra Nikah (19-30 Tahun belum menikah)'] || 0],
-        ['PN-DEWASA (>30)', age['PN-Dewasa (Diatas 30 Tahun yang belum menikah)'] || 0],
-        ['MENIKAH', (status.Kawin || 0) + (status.Menikah || 0)],
-        ['JANDA', status.Janda || 0], ['DUDA', status.Duda || 0]
+        ['usia-dini', 'USIA DINI (0-6)', age['Usia Dini (0-6 Tahun)'] || 0],
+        ['caberawit', 'CABERAWIT (7-12)', age['Caberawit (7-12 Tahun)'] || 0],
+        ['smp', 'SMP (13-15)', age['SMP-Pra Remaja (13-15 Tahun)'] || 0],
+        ['sma', 'SMA (16-18)', age['SMA-Remaja (16-18 Tahun)'] || 0],
+        ['pra-nikah', 'PRA NIKAH (19-30)', age['PN-Pra Nikah (19-30 Tahun belum menikah)'] || 0],
+        ['pn-dewasa', 'PN-DEWASA (>30)', age['PN-Dewasa (Diatas 30 Tahun yang belum menikah)'] || 0],
+        ['menikah', 'MENIKAH', (status.Kawin || 0) + (status.Menikah || 0)],
+        ['janda', 'JANDA', status.Janda || 0],
+        ['duda', 'DUDA', status.Duda || 0]
       ];
-      statsHost.innerHTML = `
-        <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">${mappings.map(([name, count]) => `
-          <article class="card stat-card"><p class="stat-label">${DKM.escape(name)}</p><p class="stat-value">${Number(count).toLocaleString('id-ID')}</p></article>`).join('')}</section>
-        <section class="card stat-card flex items-center justify-between"><div><p class="stat-label">Total Jamaah Terdaftar</p><p class="stat-value">${Number(stats?.total || 0).toLocaleString('id-ID')}</p></div><div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('users')}</div></section>`;
-      if (publicHome && client.channel) {
-        this.channel = client.channel('public-home')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'statistik_jamaah_public' }, () => this.render(document.getElementById('app')))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'profil_masjid' }, () => this.render(document.getElementById('app')))
-          .subscribe();
+      const statsHost = root.querySelector('#homeStats');
+      if (!statsHost.querySelector('[data-home-stat]')) {
+        statsHost.innerHTML = `
+          <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">${mappings.map(([key, name]) => `
+            <article class="card stat-card"><p class="stat-label">${DKM.escape(name)}</p><p class="stat-value" data-home-stat="${key}"></p></article>`).join('')}</section>
+          <section class="card stat-card flex items-center justify-between"><div><p class="stat-label">Total Jamaah Terdaftar</p><p class="stat-value" data-home-stat="total"></p></div><div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('users')}</div></section>`;
       }
+      for (const [key, , count] of mappings) {
+        statsHost.querySelector(`[data-home-stat="${key}"]`).textContent = Number(count).toLocaleString('id-ID');
+      }
+      statsHost.querySelector('[data-home-stat="total"]').textContent = Number(stats?.total || 0).toLocaleString('id-ID');
+      const errorNode = root.querySelector('#homeStatsError');
+      errorNode.hidden = true;
     } catch (error) {
+      if (requestId !== this.refreshRequest || DKM.route !== 'home') return;
       console.error(error);
-      statsHost.innerHTML = `<section class="card card-pad mt-5"><h2 class="font-semibold">Data belum tersedia</h2><p class="mt-2 text-sm text-muted">${DKM.escape(error.message || 'Periksa konfigurasi Supabase dan jalankan database.sql.')}</p></section>`;
+      const errorNode = root.querySelector('#homeStatsError');
+      errorNode.textContent = `Data belum tersedia. ${error.message || 'Periksa konfigurasi Supabase dan jalankan database.sql.'}`;
+      errorNode.hidden = false;
     }
   },
   stopRealtime() {
+    this.refreshRequest++;
     if (this.channel && window.supabaseClient) {
       window.supabaseClient.removeChannel(this.channel);
       this.channel = null;
