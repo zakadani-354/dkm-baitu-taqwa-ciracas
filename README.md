@@ -26,6 +26,10 @@ Change both initial passwords after setup. Account passwords are authenticated b
 
 The public home page only receives profile data and aggregate jamaah counts. Personal jamaah records require a signed-in account. Tailwind and the other UI libraries load from CDNs, so the app needs an internet connection.
 
+## Jamaah and census
+
+Jamaah are classified from age and marital status: Usia Dini (0-6), Caberawit (7-12), SMP-Pra Remaja (13-15), SMA-Remaja (16-18), PN-Pra Nikah (19-30 and unmarried), PN-Dewasa (over 30 and unmarried), or Menikah. The Database Jamaah page includes a Sensus Jamaah tab with counts by gender and a household-head count; Janda and Duda are treated as Kepala Keluarga. When updating an existing project, run `database.sql` again to migrate stored classifications and database constraints.
+
 ## Security note
 
 `.env` and `.env.*` are ignored by Git. This is a static browser app, so it cannot read `.env` directly. The Supabase publishable/anon key is intended to be visible in browser code; database security must come from the included RLS policies. Never use a Supabase `service_role` or other private key in frontend code.

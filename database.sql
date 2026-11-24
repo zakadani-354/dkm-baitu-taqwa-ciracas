@@ -31,7 +31,11 @@ create table if not exists public.jamaah (
   status_keluarga text check (status_keluarga in ('Kepala Keluarga','Istri','Anak','Famili Lain')),
   status_pernikahan text check (status_pernikahan in ('Janda','Duda','Kawin','Belum Kawin')),
   umur int check (umur is null or umur >= 0),
-  kelompok_umur text check (kelompok_umur in ('PAUD','SD','SMP','SMA','Pra Nikah','Dewasa')),
+  kelompok_umur text check (kelompok_umur in (
+    'Usia Dini (0-6 Tahun)','Caberawit (7-12 Tahun)','SMP-Pra Remaja (13-15 Tahun)',
+    'SMA-Remaja (16-18 Tahun)','PN-Pra Nikah (19-30 Tahun belum menikah)',
+    'PN-Dewasa (Diatas 30 Tahun yang belum menikah)','Menikah'
+  )),
   status_nikah text check (status_nikah in ('Menikah','Belum Menikah','Janda','Duda')),
   pekerjaan text,
   penghasilan text,
@@ -41,6 +45,52 @@ create table if not exists public.jamaah (
 alter table public.jamaah drop constraint if exists jamaah_status_nikah_check;
 alter table public.jamaah add constraint jamaah_status_nikah_check
   check (status_nikah in ('Menikah','Belum Menikah','Janda','Duda'));
+alter table public.jamaah drop constraint if exists jamaah_kelompok_umur_check;
+alter table public.jamaah add constraint jamaah_kelompok_umur_check
+  check (kelompok_umur in (
+    'Usia Dini (0-6 Tahun)','Caberawit (7-12 Tahun)','SMP-Pra Remaja (13-15 Tahun)',
+    'SMA-Remaja (16-18 Tahun)','PN-Pra Nikah (19-30 Tahun belum menikah)',
+    'PN-Dewasa (Diatas 30 Tahun yang belum menikah)','Menikah'
+  ));
+
+with classification as (
+  select id,
+    coalesce(nullif(status_nikah, ''), case status_pernikahan
+      when 'Kawin' then 'Menikah'
+      when 'Belum Kawin' then 'Belum Menikah'
+      else status_pernikahan
+    end) as canonical_status,
+    case when tanggal_lahir is not null
+      then extract(year from age(current_date, tanggal_lahir))::int
+      else umur
+    end as current_age,
+    kelompok_umur as previous_group
+  from public.jamaah
+)
+update public.jamaah as jamaah
+set status_nikah = classification.canonical_status,
+    status_keluarga = case
+      when classification.canonical_status in ('Janda','Duda') then 'Kepala Keluarga'
+      else jamaah.status_keluarga
+    end,
+    kelompok_umur = case
+      when classification.canonical_status = 'Menikah' then 'Menikah'
+      when classification.current_age between 0 and 6 then 'Usia Dini (0-6 Tahun)'
+      when classification.current_age between 7 and 12 then 'Caberawit (7-12 Tahun)'
+      when classification.current_age between 13 and 15 then 'SMP-Pra Remaja (13-15 Tahun)'
+      when classification.current_age between 16 and 18 then 'SMA-Remaja (16-18 Tahun)'
+      when classification.current_age between 19 and 30 then 'PN-Pra Nikah (19-30 Tahun belum menikah)'
+      when classification.current_age > 30 then 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)'
+      when classification.previous_group = 'PAUD' then 'Usia Dini (0-6 Tahun)'
+      when classification.previous_group = 'SD' then 'Caberawit (7-12 Tahun)'
+      when classification.previous_group = 'SMP' then 'SMP-Pra Remaja (13-15 Tahun)'
+      when classification.previous_group = 'SMA' then 'SMA-Remaja (16-18 Tahun)'
+      when classification.previous_group = 'Pra Nikah' then 'PN-Pra Nikah (19-30 Tahun belum menikah)'
+      when classification.previous_group = 'Dewasa' then 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)'
+      else classification.previous_group
+    end
+from classification
+where jamaah.id = classification.id;
 
 -- A safe aggregate snapshot lets the public home page update live without
 -- exposing individual jamaah records to the anon role.
@@ -108,8 +158,10 @@ begin
     (select count(*) from public.jamaah),
     (select coalesce(jsonb_object_agg(kelompok_umur,jumlah),'{}'::jsonb)
      from (select kelompok_umur,count(*) as jumlah from public.jamaah where kelompok_umur is not null group by kelompok_umur) age_groups),
-    (select coalesce(jsonb_object_agg(status_pernikahan,jumlah),'{}'::jsonb)
-     from (select status_pernikahan,count(*) as jumlah from public.jamaah where status_pernikahan is not null group by status_pernikahan) marriage_status),
+    (select coalesce(jsonb_object_agg(status,jumlah),'{}'::jsonb)
+     from (select coalesce(nullif(status_nikah,''),status_pernikahan) as status,count(*) as jumlah
+       from public.jamaah where coalesce(nullif(status_nikah,''),status_pernikahan) is not null
+       group by coalesce(nullif(status_nikah,''),status_pernikahan)) marriage_status),
     now()
   on conflict (id) do update set total=excluded.total,usia=excluded.usia,status=excluded.status,updated_at=excluded.updated_at;
   return null;
@@ -126,8 +178,10 @@ values (
   (select count(*) from public.jamaah),
   (select coalesce(jsonb_object_agg(kelompok_umur,jumlah),'{}'::jsonb)
    from (select kelompok_umur,count(*) as jumlah from public.jamaah where kelompok_umur is not null group by kelompok_umur) age_groups),
-  (select coalesce(jsonb_object_agg(status_pernikahan,jumlah),'{}'::jsonb)
-   from (select status_pernikahan,count(*) as jumlah from public.jamaah where status_pernikahan is not null group by status_pernikahan) marriage_status)
+  (select coalesce(jsonb_object_agg(status,jumlah),'{}'::jsonb)
+   from (select coalesce(nullif(status_nikah,''),status_pernikahan) as status,count(*) as jumlah
+     from public.jamaah where coalesce(nullif(status_nikah,''),status_pernikahan) is not null
+     group by coalesce(nullif(status_nikah,''),status_pernikahan)) marriage_status)
 )
 on conflict (id) do update set total=excluded.total,usia=excluded.usia,status=excluded.status,updated_at=now();
 

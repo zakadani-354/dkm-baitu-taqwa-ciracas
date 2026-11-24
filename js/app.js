@@ -193,13 +193,18 @@ window.Home = {
       document.getElementById('heroAddress').textContent = mosque.alamat || 'Ciracas, Jakarta Timur';
       const age = stats?.usia || {}, status = stats?.status || {};
       const mappings = [
-        ['PAUD', age.PAUD || 0], ['SD', age.SD || 0], ['SMP', age.SMP || 0], ['SMA', age.SMA || 0],
-        ['Pra Nikah', age['Pra Nikah'] || 0], ['Menikah', (status.Kawin || 0) + (status.Menikah || 0)],
+        ['Usia Dini (0-6 Tahun)', age['Usia Dini (0-6 Tahun)'] || 0],
+        ['Caberawit (7-12 Tahun)', age['Caberawit (7-12 Tahun)'] || 0],
+        ['SMP-Pra Remaja (13-15 Tahun)', age['SMP-Pra Remaja (13-15 Tahun)'] || 0],
+        ['SMA-Remaja (16-18 Tahun)', age['SMA-Remaja (16-18 Tahun)'] || 0],
+        ['PN-Pra Nikah (19-30 Tahun belum menikah)', age['PN-Pra Nikah (19-30 Tahun belum menikah)'] || 0],
+        ['PN-Dewasa (Diatas 30 Tahun yang belum menikah)', age['PN-Dewasa (Diatas 30 Tahun yang belum menikah)'] || 0],
+        ['Menikah', (status.Kawin || 0) + (status.Menikah || 0)],
         ['Janda', status.Janda || 0], ['Duda', status.Duda || 0]
       ];
       statsHost.innerHTML = `
-        <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">${mappings.map(([name, count]) => `
-          <article class="card stat-card"><p class="stat-label">${name}</p><p class="stat-value">${Number(count).toLocaleString('id-ID')}</p></article>`).join('')}</section>
+        <section class="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">${mappings.map(([name, count]) => `
+          <article class="card stat-card"><p class="stat-label">${DKM.escape(name)}</p><p class="stat-value">${Number(count).toLocaleString('id-ID')}</p></article>`).join('')}</section>
         <section class="card stat-card flex items-center justify-between"><div><p class="stat-label">Total Jamaah Terdaftar</p><p class="stat-value">${Number(stats?.total || 0).toLocaleString('id-ID')}</p></div><div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('users')}</div></section>`;
       if (publicHome && client.channel) {
         this.channel = client.channel('public-home')

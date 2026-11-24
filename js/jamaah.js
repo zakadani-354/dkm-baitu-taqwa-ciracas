@@ -6,6 +6,11 @@ window.Jamaah = {
       <header class="page-heading"><div><p class="eyebrow">Data Umat</p><h1 class="text-3xl font-semibold">Database Jamaah</h1></div>
         <div class="flex flex-wrap gap-2">${DKM.isAdmin ? `<button class="btn-primary" data-j-action="new">${DKM.icon('plus')}Tambah Jamaah</button>` : ''}</div>
       </header>
+      <nav class="segmented mb-4" aria-label="Menu Database Jamaah">
+        <button class="segment active" type="button" data-j-tab="data">Data Jamaah</button>
+        <button class="segment" type="button" data-j-tab="census">Sensus Jamaah</button>
+      </nav>
+      <div id="jamaahDataView">
       <section class="card card-pad mb-4"><div class="flex flex-wrap items-center gap-3">
         <input id="jamaahSearch" class="input max-w-sm" type="search" placeholder="Cari nama jamaah..." aria-label="Cari jamaah">
         ${DKM.isAdmin ? `<button class="btn-secondary" data-j-action="template">Template Excel</button>
@@ -17,7 +22,18 @@ window.Jamaah = {
         ${DKM.isAdmin ? '<th><label class="flex items-center gap-2"><input id="selectAll" type="checkbox" aria-label="Pilih semua"><span>Pilih</span></label></th>' : ''}
         <th>Nama</th><th>Umur</th><th>Kelompok</th><th>Jenis Kelamin</th><th>Status Nikah</th><th>Pekerjaan</th>${DKM.isAdmin ? '<th>Aksi</th>' : ''}
       </tr></thead><tbody id="jamaahRows"><tr><td class="empty-state" colspan="8">Memuat jamaah...</td></tr></tbody></table></section>
+      </div>
       <dialog id="jamaahDialog" class="modal-dialog"></dialog>
+      <section id="jamaahCensusView" hidden>
+        <div class="card stat-card mb-4 flex items-center justify-between">
+          <div><p class="stat-label">Jumlah KK</p><p id="jamaahFamilyCount" class="stat-value">0</p></div>
+          <div class="grid h-12 w-12 place-items-center rounded-full bg-[#E4E8DF] text-sage">${DKM.icon('house')}</div>
+        </div>
+        <section class="card table-wrap"><table>
+          <thead><tr><th>Klasifikasi</th><th>Laki-Laki</th><th>Perempuan</th><th>Belum Diisi</th><th>Total</th></tr></thead>
+          <tbody id="jamaahCensusRows"></tbody>
+        </table></section>
+      </section>
     </div>`;
     this.selected.clear();
     document.getElementById('jamaahSearch').addEventListener('input', event => this.draw(event.target.value));
@@ -34,6 +50,8 @@ window.Jamaah = {
     document.getElementById('jamaahFile')?.addEventListener('change', event => this.importFile(event.target.files[0]));
     document.getElementById('selectAll')?.addEventListener('change', event => this.selectVisible(event.target.checked));
     root.querySelector('.page-wrap').addEventListener('click', event => {
+      const tab = event.target.closest('[data-j-tab]');
+      if (tab) { this.showTab(tab.dataset.jTab); return; }
       const button = event.target.closest('[data-j-action]');
       if (!button) return;
       if (button.dataset.jAction === 'new') this.openForm();
@@ -49,6 +67,7 @@ window.Jamaah = {
     if (error) throw error;
     this.rows = data || [];
     this.draw(document.getElementById('jamaahSearch').value);
+    this.drawCensus();
   },
   draw(search = '') {
     const query = search.trim().toLocaleLowerCase('id');
@@ -56,8 +75,8 @@ window.Jamaah = {
     const body = document.getElementById('jamaahRows');
     body.innerHTML = visible.length ? visible.map(row => `<tr>
       ${DKM.isAdmin ? `<td><input type="checkbox" data-j-check value="${row.id}" ${this.selected.has(row.id) ? 'checked' : ''} aria-label="Pilih ${DKM.escape(row.nama_lengkap)}"></td>` : ''}
-      <td class="font-medium">${DKM.escape(row.nama_lengkap)}</td><td>${row.umur ?? '-'}</td><td>${DKM.escape(row.kelompok_umur || '-')}</td>
-      <td>${DKM.escape(row.jenis_kelamin || '-')}</td><td>${DKM.escape(row.status_pernikahan || '-')}</td><td>${DKM.escape(row.pekerjaan || '-')}</td>
+      <td class="font-medium">${DKM.escape(row.nama_lengkap)}</td><td>${row.umur ?? '-'}</td><td>${DKM.escape(this.classificationFor(row) || '-')}</td>
+      <td>${DKM.escape(row.jenis_kelamin || '-')}</td><td>${DKM.escape(row.status_nikah || row.status_pernikahan || '-')}</td><td>${DKM.escape(row.pekerjaan || '-')}</td>
       ${DKM.isAdmin ? `<td class="whitespace-nowrap"><button class="icon-button inline-grid mr-1" data-j-action="edit" data-id="${row.id}" aria-label="Ubah"><i data-lucide="pencil"></i></button><button class="icon-button inline-grid text-red-700" data-j-action="delete" data-id="${row.id}" aria-label="Hapus"><i data-lucide="trash-2"></i></button></td>` : ''}
     </tr>`).join('') : `<tr><td class="empty-state" colspan="${DKM.isAdmin ? 8 : 6}">Tidak ada data jamaah.</td></tr>`;
     const selectAll = document.getElementById('selectAll');
@@ -88,14 +107,94 @@ window.Jamaah = {
     if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
     return age < 0 ? null : age;
   },
-  groupFor(age) {
-    if (age === null) return '';
-    if (age <= 6) return 'PAUD';
-    if (age <= 11) return 'SD';
-    if (age <= 15) return 'SMP';
-    if (age <= 19) return 'SMA';
-    if (age <= 21) return 'Pra Nikah';
-    return 'Dewasa';
+  groupFor(age, statusNikah = null) {
+    if (statusNikah === 'Menikah') return 'Menikah';
+    if (age === null || age === undefined || !Number.isFinite(Number(age))) return '';
+    age = Number(age);
+    if (age <= 6) return 'Usia Dini (0-6 Tahun)';
+    if (age <= 12) return 'Caberawit (7-12 Tahun)';
+    if (age <= 15) return 'SMP-Pra Remaja (13-15 Tahun)';
+    if (age <= 18) return 'SMA-Remaja (16-18 Tahun)';
+    if (age <= 30) return 'PN-Pra Nikah (19-30 Tahun belum menikah)';
+    return 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)';
+  },
+  normalizeGroup(value) {
+    const groups = [
+      'Usia Dini (0-6 Tahun)',
+      'Caberawit (7-12 Tahun)',
+      'SMP-Pra Remaja (13-15 Tahun)',
+      'SMA-Remaja (16-18 Tahun)',
+      'PN-Pra Nikah (19-30 Tahun belum menikah)',
+      'PN-Dewasa (Diatas 30 Tahun yang belum menikah)',
+      'Menikah'
+    ];
+    const aliases = {
+      'paud': groups[0],
+      'sd': groups[1],
+      'smp': groups[2],
+      'sma': groups[3],
+      'pra nikah': groups[4],
+      'dewasa': groups[5]
+    };
+    const text = String(value || '').trim();
+    return aliases[text.toLocaleLowerCase('id')] || groups.find(group => group.toLocaleLowerCase('id') === text.toLocaleLowerCase('id')) || null;
+  },
+  maritalStatus(statusNikah, statusPernikahan) {
+    if (statusNikah) return statusNikah;
+    return {
+      Kawin: 'Menikah',
+      'Belum Kawin': 'Belum Menikah',
+      Janda: 'Janda',
+      Duda: 'Duda'
+    }[statusPernikahan] || null;
+  },
+  classificationFor(row) {
+    const age = row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur;
+    return this.groupFor(age, this.maritalStatus(row.status_nikah, row.status_pernikahan)) || row.kelompok_umur || '';
+  },
+  showTab(tabName) {
+    const census = tabName === 'census';
+    document.getElementById('jamaahDataView').hidden = census;
+    document.getElementById('jamaahCensusView').hidden = !census;
+    document.querySelectorAll('[data-j-tab]').forEach(button => button.classList.toggle('active', button.dataset.jTab === tabName));
+  },
+  drawCensus() {
+    const categories = [
+      'Usia Dini (0-6 Tahun)',
+      'Caberawit (7-12 Tahun)',
+      'SMP-Pra Remaja (13-15 Tahun)',
+      'SMA-Remaja (16-18 Tahun)',
+      'PN-Pra Nikah (19-30 Tahun belum menikah)',
+      'PN-Dewasa (Diatas 30 Tahun yang belum menikah)',
+      'Menikah'
+    ];
+    const emptyCount = () => ({ male: 0, female: 0, unspecified: 0, total: 0 });
+    const counts = new Map(categories.map(category => [category, emptyCount()]));
+    const unclassified = emptyCount();
+    for (const row of this.rows) {
+      const category = this.classificationFor(row);
+      const count = counts.get(category) || unclassified;
+      if (row.jenis_kelamin === 'Laki-laki') count.male++;
+      else if (row.jenis_kelamin === 'Perempuan') count.female++;
+      else count.unspecified++;
+      count.total++;
+    }
+    const tableRows = categories.map(category => {
+      const count = counts.get(category);
+      return `<tr><td class="font-medium">${DKM.escape(category)}</td><td>${count.male}</td><td>${count.female}</td><td>${count.unspecified}</td><td>${count.total}</td></tr>`;
+    });
+    if (unclassified.total) tableRows.push(`<tr><td class="font-medium">Belum terklasifikasi</td><td>${unclassified.male}</td><td>${unclassified.female}</td><td>${unclassified.unspecified}</td><td>${unclassified.total}</td></tr>`);
+    const allCounts = [...counts.values(), unclassified];
+    const maleTotal = allCounts.reduce((total, count) => total + count.male, 0);
+    const femaleTotal = allCounts.reduce((total, count) => total + count.female, 0);
+    const unspecifiedTotal = allCounts.reduce((total, count) => total + count.unspecified, 0);
+    const total = allCounts.reduce((sum, count) => sum + count.total, 0);
+    tableRows.push(`<tr class="font-semibold"><td>Total</td><td>${maleTotal}</td><td>${femaleTotal}</td><td>${unspecifiedTotal}</td><td>${total}</td></tr>`);
+    document.getElementById('jamaahCensusRows').innerHTML = tableRows.join('');
+    const familyCount = this.rows.filter(row =>
+      row.status_keluarga === 'Kepala Keluarga' || ['Janda', 'Duda'].includes(row.status_nikah || row.status_pernikahan)
+    ).length;
+    document.getElementById('jamaahFamilyCount').textContent = familyCount.toLocaleString('id-ID');
   },
   openForm(row = {}) {
     if (!DKM.isAdmin) return;
@@ -108,7 +207,7 @@ window.Jamaah = {
         <label class="field-label">Tempat Lahir<input class="input mt-1" name="tempat_lahir" value="${DKM.escape(row.tempat_lahir)}"></label>
         <label class="field-label">Tanggal Lahir<input class="input mt-1" name="tanggal_lahir" type="date" value="${DKM.escape(row.tanggal_lahir || '')}"></label>
         <label class="field-label">Umur<input class="input mt-1" name="umur" type="number" readonly value="${row.umur ?? ''}"></label>
-        <label class="field-label">Kelompok Umur<select class="select mt-1" name="kelompok_umur">${this.options(['PAUD','SD','SMP','SMA','Pra Nikah','Dewasa'], row.kelompok_umur)}</select></label>
+        <label class="field-label">Klasifikasi Jamaah<input class="input mt-1" name="kelompok_umur" readonly value="${DKM.escape(this.classificationFor(row))}"></label>
         <label class="field-label">Jenis Kelamin<select class="select mt-1" name="jenis_kelamin">${this.options(['Laki-laki','Perempuan'],row.jenis_kelamin,true)}</select></label>
         <label class="field-label">Hubungan Keluarga<select class="select mt-1" name="status_keluarga">${this.options(['Kepala Keluarga','Istri','Anak','Famili Lain'],row.status_keluarga,true)}</select></label>
         <label class="field-label">Status Pernikahan<select class="select mt-1" name="status_pernikahan">${this.options(['Belum Kawin','Kawin','Janda','Duda'],row.status_pernikahan,true)}</select></label>
@@ -119,11 +218,18 @@ window.Jamaah = {
       <div class="mt-6 flex justify-end gap-2"><button type="button" class="btn-secondary" data-j-close>Batal</button><button class="btn-primary">Simpan</button></div>
     </form>`;
     const form = dialog.querySelector('form');
-    form.elements.tanggal_lahir.addEventListener('change', () => {
+    const updateClassification = () => {
       const age = this.ageOf(form.elements.tanggal_lahir.value);
+      const maritalStatus = this.maritalStatus(form.elements.status_nikah.value, form.elements.status_pernikahan.value);
       form.elements.umur.value = age ?? '';
-      if (age !== null) form.elements.kelompok_umur.value = this.groupFor(age);
-    });
+      form.elements.kelompok_umur.value = this.groupFor(age, maritalStatus);
+      if (['Janda', 'Duda'].includes(maritalStatus)) {
+        form.elements.status_keluarga.value = 'Kepala Keluarga';
+      }
+    };
+    form.elements.tanggal_lahir.addEventListener('change', updateClassification);
+    form.elements.status_nikah.addEventListener('change', updateClassification);
+    form.elements.status_pernikahan.addEventListener('change', updateClassification);
     dialog.querySelectorAll('[data-j-close]').forEach(button => button.addEventListener('click', () => dialog.close()));
     form.addEventListener('submit', event => { event.preventDefault(); this.save(new FormData(form), row.id); });
     dialog.showModal();
@@ -136,15 +242,16 @@ window.Jamaah = {
   async save(formData, id) {
     const date = formData.get('tanggal_lahir') || null;
     const age = this.ageOf(date);
+    const statusNikah = this.maritalStatus(formData.get('status_nikah'), formData.get('status_pernikahan'));
     const payload = {
       nama_lengkap: String(formData.get('nama_lengkap')).trim(),
       tempat_lahir: String(formData.get('tempat_lahir')).trim() || null,
       tanggal_lahir: date, umur: age,
-      kelompok_umur: String(formData.get('kelompok_umur') || this.groupFor(age)) || null,
+      kelompok_umur: this.groupFor(age, statusNikah) || null,
       jenis_kelamin: formData.get('jenis_kelamin') || null,
-      status_keluarga: formData.get('status_keluarga') || null,
+      status_keluarga: ['Janda', 'Duda'].includes(statusNikah) ? 'Kepala Keluarga' : formData.get('status_keluarga') || null,
       status_pernikahan: formData.get('status_pernikahan') || null,
-      status_nikah: formData.get('status_nikah') || null,
+      status_nikah: statusNikah,
       pekerjaan: String(formData.get('pekerjaan')).trim() || null,
       penghasilan: String(formData.get('penghasilan')).trim() || null
     };
@@ -246,6 +353,13 @@ window.Jamaah = {
         const rawBirthDate = this.rowValue(row, ['tanggal_lahir', 'tgl_lahir', 'tanggal lahir']);
         const birthDate = this.parseBirthDate(rawBirthDate);
         const age = this.ageOf(birthDate);
+        const statusPernikahan = this.normalizeChoice(this.rowValue(row, ['status_pernikahan', 'status pernikahan']), ['Janda', 'Duda', 'Kawin', 'Belum Kawin'], { kawin: 'Kawin', menikah: 'Kawin', 'belum menikah': 'Belum Kawin', 'belum kawin': 'Belum Kawin' });
+        const statusNikah = this.normalizeChoice(
+          this.rowValue(row, ['status_nikah', 'status nikah']) || statusPernikahan,
+          ['Menikah', 'Belum Menikah', 'Janda', 'Duda'],
+          { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }
+        );
+        const statusKeluarga = this.normalizeChoice(this.rowValue(row, ['status_keluarga', 'hubungan_keluarga', 'hubungan keluarga']), ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain'], { kk: 'Kepala Keluarga', 'kepala keluarga': 'Kepala Keluarga', famili: 'Famili Lain', 'famili lain': 'Famili Lain' });
         return {
           __row: index + 2,
           __invalid_birth: rawBirthDate !== '' && birthDate === null,
@@ -253,10 +367,10 @@ window.Jamaah = {
           tempat_lahir: String(this.rowValue(row, ['tempat_lahir', 'tempat lahir']) || '').trim() || null,
           tanggal_lahir: birthDate || null, umur: age,
           jenis_kelamin: this.normalizeChoice(this.rowValue(row, ['jenis_kelamin', 'jenis kelamin']), ['Laki-laki', 'Perempuan'], { 'laki laki': 'Laki-laki', laki: 'Laki-laki', l: 'Laki-laki', pria: 'Laki-laki', perempuan: 'Perempuan', p: 'Perempuan', wanita: 'Perempuan' }),
-          status_keluarga: this.normalizeChoice(this.rowValue(row, ['status_keluarga', 'hubungan_keluarga', 'hubungan keluarga']), ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain'], { kk: 'Kepala Keluarga', 'kepala keluarga': 'Kepala Keluarga', famili: 'Famili Lain', 'famili lain': 'Famili Lain' }),
-          status_pernikahan: this.normalizeChoice(this.rowValue(row, ['status_pernikahan', 'status_pernikahan']), ['Janda', 'Duda', 'Kawin', 'Belum Kawin'], { kawin: 'Kawin', menikah: 'Kawin', 'belum menikah': 'Belum Kawin', 'belum kawin': 'Belum Kawin' }),
-          kelompok_umur: this.normalizeChoice(this.rowValue(row, ['kelompok_umur', 'kelompok umur']) || this.groupFor(age), ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']),
-          status_nikah: this.normalizeChoice(this.rowValue(row, ['status_nikah', 'status nikah']), ['Menikah', 'Belum Menikah', 'Janda', 'Duda'], { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }),
+          status_keluarga: ['Janda', 'Duda'].includes(statusNikah) ? 'Kepala Keluarga' : statusKeluarga,
+          status_pernikahan: statusPernikahan,
+          kelompok_umur: this.groupFor(age, statusNikah) || this.normalizeGroup(this.rowValue(row, ['kelompok_umur', 'kelompok umur'])),
+          status_nikah: statusNikah,
           pekerjaan: String(this.rowValue(row, ['pekerjaan']) || '').trim() || null,
           penghasilan: String(this.rowValue(row, ['penghasilan', 'penghasilan_per_bulan', 'penghasilan per bulan']) || '').trim() || null
         };
@@ -269,7 +383,7 @@ window.Jamaah = {
         ['Jenis kelamin', 'jenis_kelamin', ['Laki-laki', 'Perempuan']],
         ['Status keluarga', 'status_keluarga', ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain']],
         ['Status pernikahan', 'status_pernikahan', ['Janda', 'Duda', 'Kawin', 'Belum Kawin']],
-        ['Kelompok umur', 'kelompok_umur', ['PAUD', 'SD', 'SMP', 'SMA', 'Pra Nikah', 'Dewasa']],
+        ['Kelompok umur', 'kelompok_umur', ['Usia Dini (0-6 Tahun)', 'Caberawit (7-12 Tahun)', 'SMP-Pra Remaja (13-15 Tahun)', 'SMA-Remaja (16-18 Tahun)', 'PN-Pra Nikah (19-30 Tahun belum menikah)', 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)', 'Menikah']],
         ['Status nikah', 'status_nikah', ['Menikah', 'Belum Menikah', 'Janda', 'Duda']]
       ];
       for (const row of rows) {
