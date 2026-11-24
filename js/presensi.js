@@ -4,6 +4,7 @@ window.Presensi = {
   chartDonut: null,
   historyRows: [],
   attendanceRows: [],
+  candidateLoadId: 0,
   hasdaMessage: '',
   async render(root) {
     root.innerHTML = `<div class="page-wrap">
@@ -54,7 +55,10 @@ window.Presensi = {
       document.getElementById('attendanceClassWrap').hidden = !generus;
       document.getElementById('hasdaWrap').hidden = type.value !== 'Pengajian Umum';
     };
-    type.addEventListener('change', syncType);
+    type.addEventListener('change', () => {
+      syncType();
+      this.loadCandidates();
+    });
     document.getElementById('attendanceClass')?.addEventListener('change', () => this.loadCandidates());
     syncType();
     document.getElementById('loadJamaah')?.addEventListener('click', () => this.loadCandidates());
@@ -67,31 +71,43 @@ window.Presensi = {
   classOptions(selected = '') {
     return ['SMP','SMA','PN'].map(value => `<option ${selected === value ? 'selected' : ''}>${value}</option>`).join('');
   },
+  isEligible(person, type, selectedClass = null) {
+    const age = Number(person.umur);
+    if (type === 'Pengajian Umum') return Number.isFinite(age) && age >= 13;
+    if (type === 'Pengajian Ibu-Ibu') {
+      return person.jenis_kelamin === 'Perempuan'
+        && ['Menikah','Janda'].includes(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan));
+    }
+    if (type === 'Pembinaan Generus') {
+      const ranges = { SMP: [13,15], SMA: [16,18], PN: [19,30] };
+      const range = ranges[selectedClass];
+      return Number.isFinite(age) && Boolean(range) && age >= range[0] && age <= range[1];
+    }
+    return false;
+  },
   async loadCandidates() {
     if (!DKM.isAdmin) return;
     const type = document.getElementById('attendanceType').value;
+    const loadId = ++this.candidateLoadId;
+    const list = document.getElementById('candidateList');
+    const save = document.getElementById('saveAttendance');
+    list.innerHTML = '<div class="empty-state">Memuat daftar jamaah...</div>';
+    document.getElementById('candidateCount').textContent = '';
+    if (save) save.hidden = true;
     let query = DKM.ready().from('jamaah')
       .select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin,umur')
       .order('nama_lengkap');
-    if (type === 'Pengajian Ibu-Ibu') query = query.eq('jenis_kelamin','Perempuan');
     const { data, error } = await DKM.run(() => query, 'Memuat daftar jamaah...');
     if (error) throw error;
-    let people = data || [];
-    if (type === 'Pembinaan Generus') {
-      const selectedClass = document.getElementById('attendanceClass').value;
-      const groups = selectedClass === 'PN'
-        ? ['PN-Pra Nikah (19-30 Tahun belum menikah)', 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)']
-        : [selectedClass === 'SMP' ? 'SMP-Pra Remaja (13-15 Tahun)' : 'SMA-Remaja (16-18 Tahun)'];
-      people = people.filter(person => groups.includes(Jamaah.classificationFor(person)));
-    }
-    const list = document.getElementById('candidateList');
+    if (loadId !== this.candidateLoadId) return;
+    const selectedClass = type === 'Pembinaan Generus' ? document.getElementById('attendanceClass').value : null;
+    const people = (data || []).filter(person => this.isEligible(person, type, selectedClass));
     document.getElementById('candidateCount').textContent = `${people.length} jamaah`;
     list.innerHTML = people.length ? people.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
       <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) || '-')}</p></div>
       <select class="select status-select" data-status-for="${person.id}" aria-label="Status ${DKM.escape(person.nama_lengkap)}">
         <option>Hadir</option><option>Tidak Hadir</option><option>Izin</option></select>
     </div>`).join('') : '<div class="empty-state">Tidak ada jamaah sesuai kategori ini.</div>';
-    const save = document.getElementById('saveAttendance');
     if (save) save.hidden = people.length === 0;
   },
   async save() {
