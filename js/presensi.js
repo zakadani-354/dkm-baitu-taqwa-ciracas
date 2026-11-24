@@ -15,7 +15,9 @@ window.Presensi = {
       </div>
       <div id="presensiView"></div>
     </div>`;
-    root.querySelectorAll('[data-p-tab]').forEach(button => button.addEventListener('click', () => this.setTab(button.dataset.pTab)));
+    root.querySelectorAll('[data-p-tab]').forEach(button => button.addEventListener('click', () => {
+      this.setTab(button.dataset.pTab).catch(error => console.error('Gagal membuka tab presensi:', error));
+    }));
     await this.showTab(this.tab);
   },
   async setTab(tab) {
@@ -57,12 +59,18 @@ window.Presensi = {
     };
     type.addEventListener('change', () => {
       syncType();
-      this.loadCandidates();
+      this.loadCandidates().catch(error => console.error('Gagal memuat peserta:', error));
     });
-    document.getElementById('attendanceClass')?.addEventListener('change', () => this.loadCandidates());
+    document.getElementById('attendanceClass')?.addEventListener('change', () => {
+      this.loadCandidates().catch(error => console.error('Gagal memuat peserta:', error));
+    });
     syncType();
-    document.getElementById('loadJamaah')?.addEventListener('click', () => this.loadCandidates());
-    document.getElementById('saveAttendance')?.addEventListener('click', () => this.save());
+    document.getElementById('loadJamaah')?.addEventListener('click', () => {
+      this.loadCandidates().catch(error => console.error('Gagal memuat peserta:', error));
+    });
+    document.getElementById('saveAttendance')?.addEventListener('click', () => {
+      this.save().catch(error => console.error('Gagal menyimpan presensi:', error));
+    });
   },
   typeOptions(selected = '') {
     return ['Pengajian Umum','Pengajian Ibu-Ibu','Pembinaan Generus'].map(value =>
@@ -85,6 +93,18 @@ window.Presensi = {
     }
     return false;
   },
+  async runQuery(task, label) {
+    return DKM.run(async () => {
+      const result = await task();
+      if (result.error) {
+        if (result.error.code === '23514' && result.error.message.includes('presensi_detail_status_check')) {
+          throw new Error('Database belum menerima status presensi terbaru. Jalankan ulang database.sql di Supabase, lalu input kembali presensi.');
+        }
+        throw result.error;
+      }
+      return result;
+    }, label);
+  },
   async loadCandidates() {
     if (!DKM.isAdmin) return;
     const type = document.getElementById('attendanceType').value;
@@ -97,8 +117,7 @@ window.Presensi = {
     let query = DKM.ready().from('jamaah')
       .select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin,umur')
       .order('nama_lengkap');
-    const { data, error } = await DKM.run(() => query, 'Memuat daftar jamaah...');
-    if (error) throw error;
+    const { data } = await this.runQuery(() => query, 'Memuat daftar jamaah...');
     if (loadId !== this.candidateLoadId) return;
     const selectedClass = type === 'Pembinaan Generus' ? document.getElementById('attendanceClass').value : null;
     const people = (data || []).filter(person => this.isEligible(person, type, selectedClass));
@@ -124,21 +143,20 @@ window.Presensi = {
     duplicateQuery = sessionPayload.kelas_generus
       ? duplicateQuery.eq('kelas_generus',sessionPayload.kelas_generus)
       : duplicateQuery.is('kelas_generus',null);
-    const { data: duplicates, error: duplicateError } = await DKM.run(() => duplicateQuery, 'Memeriksa sesi presensi...');
-    if (duplicateError) throw duplicateError;
+    const { data: duplicates } = await this.runQuery(() => duplicateQuery, 'Memeriksa sesi presensi...');
     if (duplicates.length && !confirm('Sesi untuk tanggal dan kategori ini sudah ada. Tetap buat sesi baru?')) return;
     const client = DKM.ready();
-    const { data: session, error: sessionError } = await DKM.run(
+    const { data: session } = await this.runQuery(
       () => client.from('presensi_sesi').insert(sessionPayload).select('id').single(),
       'Menyimpan sesi presensi...'
     );
-    if (sessionError) throw sessionError;
     const details = [...document.querySelectorAll('[data-status-for]')].map(select => ({
       sesi_id: session.id, jamaah_id: select.dataset.statusFor, status: select.value
     }));
     if (details.length) {
-      const { error } = await DKM.run(() => client.from('presensi_detail').insert(details), 'Menyimpan detail kehadiran...');
-      if (error) {
+      try {
+        await this.runQuery(() => client.from('presensi_detail').insert(details), 'Menyimpan detail kehadiran...');
+      } catch (error) {
         const { error: rollbackError } = await client.from('presensi_sesi').delete().eq('id',session.id);
         if (rollbackError) console.error('Gagal membersihkan sesi presensi yang tidak lengkap:',rollbackError);
         throw error;
@@ -157,7 +175,9 @@ window.Presensi = {
       <div class="flex items-end"><button class="btn-secondary w-full" id="historyExport">Ekspor Excel</button></div>
     </div></section>
     <section class="card table-wrap"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kelas</th><th>Hadir</th><th>Total</th><th>HASDA</th></tr></thead><tbody id="historyTable"></tbody></table></section>`;
-    ['historyMonth','historyType','historyClass'].forEach(id => document.getElementById(id).addEventListener('change',() => this.loadHistory()));
+    ['historyMonth','historyType','historyClass'].forEach(id => document.getElementById(id).addEventListener('change',() => {
+      this.loadHistory().catch(error => console.error('Gagal memuat riwayat presensi:', error));
+    }));
     document.getElementById('historyExport').addEventListener('click',() => this.exportHistory());
     await this.loadHistory();
   },
@@ -171,8 +191,7 @@ window.Presensi = {
     if (month) { const range = DKM.monthBounds(month); query = query.gte('tanggal',range.from).lte('tanggal',range.to); }
     if (type) query = query.eq('jenis_pengajian',type);
     if (klass) query = query.eq('kelas_generus',klass);
-    const { data, error } = await DKM.run(() => query,'Memuat riwayat presensi...');
-    if (error) throw error;
+    const { data } = await this.runQuery(() => query,'Memuat riwayat presensi...');
     this.historyRows = data || [];
     document.getElementById('historyTable').innerHTML = this.historyRows.length ? this.historyRows.map(row => {
       const details = row.presensi_detail || [];
@@ -212,7 +231,9 @@ window.Presensi = {
       </div><div class="table-wrap"><table><thead><tr><th>Nama</th><th>Hadir</th><th>Total Sesi</th><th>Persentase</th></tr></thead><tbody id="attendanceTable"></tbody></table></div></section>
     </section>
     <div class="mt-4 flex flex-wrap gap-2"><button class="btn-secondary" id="shareDashboard">${DKM.icon('image')}Simpan PNG</button><button class="btn-primary" id="pdfDashboard">${DKM.icon('file-down')}Ekspor PDF</button></div>`;
-    document.getElementById('dashApply').addEventListener('click',() => this.loadDashboard());
+    document.getElementById('dashApply').addEventListener('click',() => {
+      this.loadDashboard().catch(error => console.error('Gagal memuat dashboard presensi:', error));
+    });
     document.getElementById('attendanceLevel').addEventListener('change',() => this.drawAttendanceTable());
     document.getElementById('shareDashboard').addEventListener('click',() => this.exportCanvas('png'));
     document.getElementById('pdfDashboard').addEventListener('click',() => this.exportCanvas('pdf'));
@@ -226,8 +247,7 @@ window.Presensi = {
     const type = document.getElementById('dashType').value;
     if (month) { const range = DKM.monthBounds(month); query = query.gte('tanggal',range.from).lte('tanggal',range.to); }
     if (type) query = query.eq('jenis_pengajian',type);
-    const { data, error } = await DKM.run(() => query,'Menghitung dashboard...');
-    if (error) throw error;
+    const { data } = await this.runQuery(() => query,'Menghitung dashboard...');
     const sessions = data || [], details = sessions.flatMap(session => session.presensi_detail || []);
     const required = details.length, present = details.filter(detail => detail.status === 'Hadir').length;
     document.getElementById('kpiRequired').textContent = required.toLocaleString('id-ID');
@@ -301,8 +321,12 @@ window.Presensi = {
       <section class="card card-pad"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Jamaah Alpha pada Pengajian Umum HASDA</h2><button id="copyHasda" class="btn-primary">${DKM.icon('copy')}Salin Teks</button></div>
       <pre id="hasdaMessage" class="whitespace-pre-wrap rounded-xl border border-[#E6E0D6] bg-[#F7F4EF] p-4 text-sm leading-6"></pre>
       <div id="hasdaPeople" class="mt-4"></div></section>`;
-    document.getElementById('hasdaRefresh').addEventListener('click',() => this.loadHasda());
-    document.getElementById('hasdaMonth').addEventListener('change',() => this.loadHasda());
+    document.getElementById('hasdaRefresh').addEventListener('click',() => {
+      this.loadHasda().catch(error => console.error('Gagal memuat teks susulan:', error));
+    });
+    document.getElementById('hasdaMonth').addEventListener('change',() => {
+      this.loadHasda().catch(error => console.error('Gagal memuat teks susulan:', error));
+    });
     document.getElementById('copyHasda').addEventListener('click',() => this.copyHasda());
     await this.loadHasda();
   },
@@ -311,8 +335,7 @@ window.Presensi = {
     let query = DKM.ready().from('presensi_sesi').select('tanggal,presensi_detail(status,jamaah(nama_lengkap))')
       .eq('jenis_pengajian','Pengajian Umum').eq('is_hasda',true).order('tanggal');
     if (month) { const range = DKM.monthBounds(month); query = query.gte('tanggal',range.from).lte('tanggal',range.to); }
-    const { data, error } = await DKM.run(() => query,'Memuat data HASDA...');
-    if (error) throw error;
+    const { data } = await this.runQuery(() => query,'Memuat data HASDA...');
     const missed = new Map();
     (data || []).forEach(session => (session.presensi_detail || []).forEach(detail => {
       if (detail.status === 'Alpha' && detail.jamaah?.nama_lengkap) {
