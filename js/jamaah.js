@@ -76,7 +76,7 @@ window.Jamaah = {
     body.innerHTML = visible.length ? visible.map(row => `<tr>
       ${DKM.isAdmin ? `<td><input type="checkbox" data-j-check value="${row.id}" ${this.selected.has(row.id) ? 'checked' : ''} aria-label="Pilih ${DKM.escape(row.nama_lengkap)}"></td>` : ''}
       <td class="font-medium">${DKM.escape(row.nama_lengkap)}</td><td>${(row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur) ?? '-'}</td><td>${DKM.escape(this.classificationFor(row) || '-')}</td>
-      <td>${DKM.escape(row.jenis_kelamin || '-')}</td><td>${DKM.escape(row.status_nikah || row.status_pernikahan || '-')}</td><td>${DKM.escape(row.pekerjaan || '-')}</td>
+      <td>${DKM.escape(row.jenis_kelamin || '-')}</td><td>${DKM.escape(this.maritalStatus(row.status_nikah, row.status_pernikahan) || '-')}</td><td>${DKM.escape(row.pekerjaan || '-')}</td>
       ${DKM.isAdmin ? `<td class="whitespace-nowrap"><button class="icon-button inline-grid mr-1" data-j-action="edit" data-id="${row.id}" aria-label="Ubah"><i data-lucide="pencil"></i></button><button class="icon-button inline-grid text-red-700" data-j-action="delete" data-id="${row.id}" aria-label="Hapus"><i data-lucide="trash-2"></i></button></td>` : ''}
     </tr>`).join('') : `<tr><td class="empty-state" colspan="${DKM.isAdmin ? 8 : 6}">Tidak ada data jamaah.</td></tr>`;
     const selectAll = document.getElementById('selectAll');
@@ -117,6 +117,7 @@ window.Jamaah = {
   },
   groupFor(age, statusNikah = null) {
     if (statusNikah === 'Menikah') return 'Menikah';
+    if (['Janda', 'Duda'].includes(statusNikah)) return '';
     if (age === null || age === undefined || !Number.isFinite(Number(age))) return '';
     age = Number(age);
     if (age <= 6) return 'Usia Dini (0-6 Tahun)';
@@ -148,6 +149,8 @@ window.Jamaah = {
     return aliases[text.toLocaleLowerCase('id')] || groups.find(group => group.toLocaleLowerCase('id') === text.toLocaleLowerCase('id')) || null;
   },
   maritalStatus(statusNikah, statusPernikahan) {
+    if (['Janda', 'Duda'].includes(statusNikah)) return statusNikah;
+    if (['Janda', 'Duda'].includes(statusPernikahan)) return statusPernikahan;
     if (statusNikah) return statusNikah;
     return {
       Kawin: 'Menikah',
@@ -158,7 +161,9 @@ window.Jamaah = {
   },
   classificationFor(row) {
     const age = row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur;
-    return this.groupFor(age, this.maritalStatus(row.status_nikah, row.status_pernikahan)) || row.kelompok_umur || '';
+    const status = this.maritalStatus(row.status_nikah, row.status_pernikahan);
+    if (['Janda', 'Duda'].includes(status)) return status;
+    return this.groupFor(age, status) || row.kelompok_umur || '';
   },
   showTab(tabName) {
     const census = tabName === 'census';
@@ -174,7 +179,9 @@ window.Jamaah = {
       'SMA-Remaja (16-18 Tahun)',
       'PN-Pra Nikah (19-30 Tahun belum menikah)',
       'PN-Dewasa (Diatas 30 Tahun yang belum menikah)',
-      'Menikah'
+      'Menikah',
+      'Janda',
+      'Duda'
     ];
     const emptyCount = () => ({ male: 0, female: 0, unspecified: 0, total: 0 });
     const counts = new Map(categories.map(category => [category, emptyCount()]));
@@ -200,7 +207,7 @@ window.Jamaah = {
     tableRows.push(`<tr class="font-semibold"><td>Total</td><td>${maleTotal}</td><td>${femaleTotal}</td><td>${unspecifiedTotal}</td><td>${total}</td></tr>`);
     document.getElementById('jamaahCensusRows').innerHTML = tableRows.join('');
     const familyCount = this.rows.filter(row =>
-      row.status_keluarga === 'Kepala Keluarga' || ['Janda', 'Duda'].includes(row.status_nikah || row.status_pernikahan)
+      row.status_keluarga === 'Kepala Keluarga' || ['Janda', 'Duda'].includes(this.maritalStatus(row.status_nikah, row.status_pernikahan))
     ).length;
     document.getElementById('jamaahFamilyCount').textContent = familyCount.toLocaleString('id-ID');
   },
@@ -362,11 +369,12 @@ window.Jamaah = {
         const birthDate = this.parseBirthDate(rawBirthDate);
         const age = this.ageOf(birthDate);
         const statusPernikahan = this.normalizeChoice(this.rowValue(row, ['status_pernikahan', 'status pernikahan']), ['Janda', 'Duda', 'Kawin', 'Belum Kawin'], { kawin: 'Kawin', menikah: 'Kawin', 'belum menikah': 'Belum Kawin', 'belum kawin': 'Belum Kawin' });
-        const statusNikah = this.normalizeChoice(
-          this.rowValue(row, ['status_nikah', 'status nikah']) || statusPernikahan,
+        const statusNikahValue = this.normalizeChoice(
+          this.rowValue(row, ['status_nikah', 'status nikah']),
           ['Menikah', 'Belum Menikah', 'Janda', 'Duda'],
           { kawin: 'Menikah', menikah: 'Menikah', 'belum kawin': 'Belum Menikah', 'belum menikah': 'Belum Menikah' }
         );
+        const statusNikah = this.maritalStatus(statusNikahValue, statusPernikahan);
         const statusKeluarga = this.normalizeChoice(this.rowValue(row, ['status_keluarga', 'hubungan_keluarga', 'hubungan keluarga']), ['Kepala Keluarga', 'Istri', 'Anak', 'Famili Lain'], { kk: 'Kepala Keluarga', 'kepala keluarga': 'Kepala Keluarga', famili: 'Famili Lain', 'famili lain': 'Famili Lain' });
         return {
           __row: index + 2,
@@ -377,7 +385,9 @@ window.Jamaah = {
           jenis_kelamin: this.normalizeChoice(this.rowValue(row, ['jenis_kelamin', 'jenis kelamin']), ['Laki-laki', 'Perempuan'], { 'laki laki': 'Laki-laki', laki: 'Laki-laki', l: 'Laki-laki', pria: 'Laki-laki', perempuan: 'Perempuan', p: 'Perempuan', wanita: 'Perempuan' }),
           status_keluarga: ['Janda', 'Duda'].includes(statusNikah) ? 'Kepala Keluarga' : statusKeluarga,
           status_pernikahan: statusPernikahan,
-          kelompok_umur: this.groupFor(age, statusNikah) || this.normalizeGroup(this.rowValue(row, ['kelompok_umur', 'kelompok umur'])),
+          kelompok_umur: ['Janda', 'Duda'].includes(statusNikah)
+            ? null
+            : this.groupFor(age, statusNikah) || this.normalizeGroup(this.rowValue(row, ['kelompok_umur', 'kelompok umur'])),
           status_nikah: statusNikah,
           pekerjaan: String(this.rowValue(row, ['pekerjaan']) || '').trim() || null,
           penghasilan: String(this.rowValue(row, ['penghasilan', 'penghasilan_per_bulan', 'penghasilan per bulan']) || '').trim() || null

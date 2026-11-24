@@ -87,7 +87,7 @@ window.Presensi = {
     const list = document.getElementById('candidateList');
     document.getElementById('candidateCount').textContent = `${people.length} jamaah`;
     list.innerHTML = people.length ? people.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(person.status_nikah || person.status_pernikahan || '-')}</p></div>
+      <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) || '-')}</p></div>
       <select class="select status-select" data-status-for="${person.id}" aria-label="Status ${DKM.escape(person.nama_lengkap)}">
         <option>Hadir</option><option>Tidak Hadir</option><option>Izin</option></select>
     </div>`).join('') : '<div class="empty-state">Tidak ada jamaah sesuai kategori ini.</div>';

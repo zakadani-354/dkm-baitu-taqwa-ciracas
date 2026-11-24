@@ -49,11 +49,15 @@ alter table public.jamaah drop constraint if exists jamaah_kelompok_umur_check;
 
 with classification as (
   select id,
-    coalesce(nullif(status_nikah, ''), case status_pernikahan
-      when 'Kawin' then 'Menikah'
-      when 'Belum Kawin' then 'Belum Menikah'
-      else status_pernikahan
-    end) as canonical_status,
+    case
+      when status_nikah in ('Janda','Duda') then status_nikah
+      when status_pernikahan in ('Janda','Duda') then status_pernikahan
+      when status_nikah = 'Menikah' then 'Menikah'
+      when status_nikah = 'Belum Menikah' then 'Belum Menikah'
+      when status_pernikahan = 'Kawin' then 'Menikah'
+      when status_pernikahan = 'Belum Kawin' then 'Belum Menikah'
+      else coalesce(nullif(status_nikah, ''), status_pernikahan)
+    end as canonical_status,
     case when tanggal_lahir is not null
       then extract(year from (now() at time zone 'Asia/Jakarta'))::int - extract(year from tanggal_lahir)::int
       else umur
@@ -69,6 +73,7 @@ set status_nikah = classification.canonical_status,
     end,
     kelompok_umur = case
       when classification.canonical_status = 'Menikah' then 'Menikah'
+      when classification.canonical_status in ('Janda','Duda') then null
       when classification.current_age between 0 and 6 then 'Usia Dini (0-6 Tahun)'
       when classification.current_age between 7 and 12 then 'Caberawit (7-12 Tahun)'
       when classification.current_age between 13 and 15 then 'SMP-Pra Remaja (13-15 Tahun)'
@@ -195,11 +200,15 @@ returns jsonb language sql stable security definer set search_path = public
 as $$
   with people as (
     select
-      coalesce(nullif(status_nikah,''), case status_pernikahan
-        when 'Kawin' then 'Menikah'
-        when 'Belum Kawin' then 'Belum Menikah'
-        else status_pernikahan
-      end) as canonical_status,
+      case
+        when status_nikah in ('Janda','Duda') then status_nikah
+        when status_pernikahan in ('Janda','Duda') then status_pernikahan
+        when status_nikah = 'Menikah' then 'Menikah'
+        when status_nikah = 'Belum Menikah' then 'Belum Menikah'
+        when status_pernikahan = 'Kawin' then 'Menikah'
+        when status_pernikahan = 'Belum Kawin' then 'Belum Menikah'
+        else coalesce(nullif(status_nikah,''),status_pernikahan)
+      end as canonical_status,
       case when tanggal_lahir is not null
         then extract(year from (now() at time zone 'Asia/Jakarta'))::int - extract(year from tanggal_lahir)::int
         else umur
@@ -210,6 +219,7 @@ as $$
     select canonical_status,
       case
         when canonical_status = 'Menikah' then 'Menikah'
+        when canonical_status in ('Janda','Duda') then null
         when current_age between 0 and 6 then 'Usia Dini (0-6 Tahun)'
         when current_age between 7 and 12 then 'Caberawit (7-12 Tahun)'
         when current_age between 13 and 15 then 'SMP-Pra Remaja (13-15 Tahun)'
