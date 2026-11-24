@@ -77,7 +77,8 @@ window.Presensi = {
       `<option ${selected === value ? 'selected' : ''}>${value}</option>`).join('');
   },
   classOptions(selected = '') {
-    return ['SMP','SMA','PN'].map(value => `<option ${selected === value ? 'selected' : ''}>${value}</option>`).join('');
+    return [['SMP','SMP (13-15 Tahun)'],['SMA','SMA (16-18 Tahun)'],['PN','PN (19-30 Tahun, Belum Menikah)']]
+      .map(([value,label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
   },
   isEligible(person, type, selectedClass = null) {
     const age = Number(person.umur);
@@ -89,7 +90,11 @@ window.Presensi = {
     if (type === 'Pembinaan Generus') {
       const ranges = { SMP: [13,15], SMA: [16,18], PN: [19,30] };
       const range = ranges[selectedClass];
-      return Number.isFinite(age) && Boolean(range) && age >= range[0] && age <= range[1];
+      if (!Number.isFinite(age) || !range || age < range[0] || age > range[1]) return false;
+      if (selectedClass === 'PN') {
+        return Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) === 'Belum Menikah';
+      }
+      return true;
     }
     return false;
   },
