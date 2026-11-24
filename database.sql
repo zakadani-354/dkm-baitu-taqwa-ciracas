@@ -200,6 +200,37 @@ create or replace function public.is_dkm_admin()
 returns boolean language sql stable security definer set search_path = public
 as $$ select exists (select 1 from public.akun_pengguna where id = (select auth.uid()) and role = 'admin') $$;
 
+create or replace function public.admin_update_presensi_status(p_session_id uuid, p_updates jsonb)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare update_count bigint; unique_count bigint; affected_count bigint;
+begin
+  if not public.is_dkm_admin() then raise exception 'Akses admin diperlukan'; end if;
+  if p_updates is null or jsonb_typeof(p_updates) <> 'array' then
+    raise exception 'Daftar perubahan status tidak valid';
+  end if;
+  if not exists (select 1 from public.presensi_sesi where id = p_session_id) then
+    raise exception 'Sesi presensi tidak ditemukan';
+  end if;
+
+  select count(*), count(distinct item.id)
+  into update_count, unique_count
+  from jsonb_to_recordset(p_updates) as item(id uuid, status text);
+  if update_count <> unique_count then raise exception 'Daftar jamaah duplikat atau tidak valid'; end if;
+  if exists (
+    select 1 from jsonb_to_recordset(p_updates) as item(id uuid, status text)
+    where item.status is null or item.status not in ('Hadir','Izin','Sakit','Alpha')
+  ) then raise exception 'Status kehadiran tidak valid'; end if;
+
+  update public.presensi_detail as detail
+  set status = item.status
+  from jsonb_to_recordset(p_updates) as item(id uuid, status text)
+  where detail.id = item.id and detail.sesi_id = p_session_id;
+  get diagnostics affected_count = row_count;
+  if affected_count <> update_count then raise exception 'Sebagian data jamaah tidak ditemukan pada sesi ini'; end if;
+end
+$$;
+
 create or replace function public.public_home_stats()
 returns jsonb language sql stable security definer set search_path = public
 as $$
@@ -314,6 +345,7 @@ grant select on public.statistik_jamaah_public to anon, authenticated;
 grant select,insert,update,delete on public.profil_masjid,public.jamaah,public.presensi_sesi,public.presensi_detail,public.materi_pengajian,public.program_masjid to authenticated;
 grant execute on function public.public_home_stats() to anon, authenticated;
 grant execute on function public.is_dkm_admin() to authenticated;
+grant execute on function public.admin_update_presensi_status(uuid,jsonb) to authenticated;
 grant execute on function public.admin_create_account(text,text,text,text) to authenticated;
 grant execute on function public.admin_update_account(uuid,text,text,text) to authenticated;
 grant execute on function public.admin_delete_account(uuid) to authenticated;

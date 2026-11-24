@@ -100,6 +100,9 @@ window.Presensi = {
         if (result.error.code === '23514' && result.error.message.includes('presensi_detail_status_check')) {
           throw new Error('Database belum menerima status presensi terbaru. Jalankan ulang database.sql di Supabase, lalu input kembali presensi.');
         }
+        if (result.error.code === 'PGRST202' && result.error.message.includes('admin_update_presensi_status')) {
+          throw new Error('Fitur edit status belum tersedia di database. Jalankan ulang database.sql di Supabase.');
+        }
         throw result.error;
       }
       return result;
@@ -174,10 +177,15 @@ window.Presensi = {
       <label class="field-label">Kelas<select id="historyClass" class="select mt-1"><option value="">Semua kelas</option>${this.classOptions()}</select></label>
       <div class="flex items-end"><button class="btn-secondary w-full" id="historyExport">Ekspor Excel</button></div>
     </div></section>
-    <section class="card table-wrap"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kelas</th><th>Hadir</th><th>Total</th><th>HASDA</th></tr></thead><tbody id="historyTable"></tbody></table></section>`;
+    <section class="card table-wrap"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kelas</th><th>Hadir</th><th>Total</th><th>HASDA</th>${DKM.isAdmin ? '<th>Aksi</th>' : ''}</tr></thead><tbody id="historyTable"></tbody></table></section>
+    ${DKM.isAdmin ? '<dialog id="attendanceEditDialog" class="modal-dialog"></dialog>' : ''}`;
     ['historyMonth','historyType','historyClass'].forEach(id => document.getElementById(id).addEventListener('change',() => {
       this.loadHistory().catch(error => console.error('Gagal memuat riwayat presensi:', error));
     }));
+    document.getElementById('historyTable').addEventListener('click', event => {
+      const button = event.target.closest('[data-attendance-edit]');
+      if (button) this.openHistoryEdit(button.dataset.attendanceEdit).catch(error => console.error('Gagal membuka edit presensi:', error));
+    });
     document.getElementById('historyExport').addEventListener('click',() => this.exportHistory());
     await this.loadHistory();
   },
@@ -193,11 +201,76 @@ window.Presensi = {
     if (klass) query = query.eq('kelas_generus',klass);
     const { data } = await this.runQuery(() => query,'Memuat riwayat presensi...');
     this.historyRows = data || [];
+    const columnCount = DKM.isAdmin ? 7 : 6;
     document.getElementById('historyTable').innerHTML = this.historyRows.length ? this.historyRows.map(row => {
       const details = row.presensi_detail || [];
       return `<tr><td>${DKM.formatDate(row.tanggal)}</td><td>${DKM.escape(row.jenis_pengajian)}</td><td>${DKM.escape(row.kelas_generus || '-')}</td>
-        <td>${details.filter(item => item.status === 'Hadir').length}</td><td>${details.length}</td><td>${row.is_hasda ? 'Ya' : '-'}</td></tr>`;
-    }).join('') : `<tr><td colspan="6" class="empty-state">Belum ada sesi presensi.</td></tr>`;
+        <td>${details.filter(item => item.status === 'Hadir').length}</td><td>${details.length}</td><td>${row.is_hasda ? 'Ya' : '-'}</td>
+        ${DKM.isAdmin ? `<td><button class="btn-secondary" data-attendance-edit="${row.id}">Edit Status</button></td>` : ''}</tr>`;
+    }).join('') : `<tr><td colspan="${columnCount}" class="empty-state">Belum ada sesi presensi.</td></tr>`;
+  },
+  async openHistoryEdit(sessionId) {
+    if (!DKM.isAdmin) return;
+    const session = this.historyRows.find(row => row.id === sessionId);
+    if (!session) throw new Error('Sesi presensi tidak ditemukan. Muat ulang riwayat.');
+    const { data } = await this.runQuery(
+      () => DKM.ready().from('presensi_detail')
+        .select('id,jamaah_id,status,jamaah(nama_lengkap)')
+        .eq('sesi_id',sessionId),
+      'Memuat status kehadiran...'
+    );
+    const details = (data || []).sort((a,b) =>
+      (a.jamaah?.nama_lengkap || '').localeCompare(b.jamaah?.nama_lengkap || '', 'id')
+    );
+    if (!details.length) {
+      DKM.toast('Sesi ini belum memiliki data status jamaah.', 'error');
+      return;
+    }
+    const dialog = document.getElementById('attendanceEditDialog');
+    const statuses = ['Hadir','Izin','Sakit','Alpha'];
+    dialog.innerHTML = `<section class="modal-card">
+      <button type="button" class="icon-button modal-close" data-close aria-label="Tutup"><i data-lucide="x"></i></button>
+      <h2 class="mb-1 text-xl font-semibold">Edit Status Kehadiran</h2>
+      <p class="mb-5 text-sm text-muted">${DKM.formatDate(session.tanggal)} · ${DKM.escape(session.jenis_pengajian)}${session.kelas_generus ? ` · ${DKM.escape(session.kelas_generus)}` : ''}</p>
+      <form id="attendanceEditForm">
+        <div class="max-h-[55vh] space-y-3 overflow-y-auto pr-1">
+          ${details.map(detail => `<label class="flex flex-wrap items-center justify-between gap-3 border-b border-[#EFEAE2] py-2">
+            <span class="font-medium">${DKM.escape(detail.jamaah?.nama_lengkap || 'Jamaah tidak ditemukan')}</span>
+            <select class="select w-auto min-w-36" data-attendance-detail="${detail.id}" aria-label="Status ${DKM.escape(detail.jamaah?.nama_lengkap || 'jamaah')}">
+              ${statuses.map(status => `<option ${detail.status === status ? 'selected' : ''}>${status}</option>`).join('')}
+            </select>
+          </label>`).join('')}
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="btn-secondary" data-close>Batal</button>
+          <button type="submit" class="btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+    </section>`;
+    dialog.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click',() => dialog.close()));
+    dialog.querySelector('#attendanceEditForm').addEventListener('submit', event => {
+      event.preventDefault();
+      this.saveHistoryEdit(sessionId, event.currentTarget).catch(error => console.error('Gagal menyimpan perubahan presensi:', error));
+    });
+    dialog.showModal();
+    DKM.refreshIcons();
+  },
+  async saveHistoryEdit(sessionId, form) {
+    if (!DKM.isAdmin) return;
+    const updates = [...form.querySelectorAll('[data-attendance-detail]')].map(select => ({
+      id: select.dataset.attendanceDetail,
+      status: select.value
+    }));
+    await this.runQuery(
+      () => DKM.ready().rpc('admin_update_presensi_status', {
+        p_session_id: sessionId,
+        p_updates: updates
+      }),
+      'Menyimpan perubahan status...'
+    );
+    document.getElementById('attendanceEditDialog').close();
+    DKM.toast('Status kehadiran berhasil diperbarui.');
+    await this.loadHistory();
   },
   exportHistory() {
     const rows = this.historyRows.map(row => ({
