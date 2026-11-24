@@ -69,7 +69,7 @@ td{border-top:1px solid #EFEAE2;padding:12px;font-size:.86rem;vertical-align:mid
 .calendar-day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px}
 .event-chip{display:block;width:100%;margin-top:5px;border:0;border-left:3px solid var(--sage);border-radius:5px;background:#E4E8DF;padding:5px 6px;text-align:left;color:var(--charcoal);font-size:.7rem}
 .role-chip{display:inline-flex;border-radius:99px;background:#E4E8DF;padding:4px 10px;color:#425447;font-size:.72rem}
-.status-select{width:auto;min-width:120px}
+.status-select{width:100%;min-width:0}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .span-2{grid-column:span 2}
 [hidden]{display:none!important}

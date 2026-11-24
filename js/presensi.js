@@ -130,8 +130,8 @@ window.Presensi = {
     const selectedClass = type === 'Pembinaan Generus' ? document.getElementById('attendanceClass').value : null;
     const people = (data || []).filter(person => this.isEligible(person, type, selectedClass));
     document.getElementById('candidateCount').textContent = `${people.length} jamaah`;
-    list.innerHTML = people.length ? people.map(person => `<div class="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div><p class="font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) || '-')}</p></div>
+    list.innerHTML = people.length ? people.map(person => `<div class="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-3 py-3">
+      <div class="min-w-0"><p class="break-words font-medium">${DKM.escape(person.nama_lengkap)}</p><p class="text-xs text-muted">${DKM.escape(Jamaah.classificationFor(person) || '-')} · ${DKM.escape(Jamaah.maritalStatus(person.status_nikah, person.status_pernikahan) || '-')}</p></div>
       <select class="select status-select" data-status-for="${person.id}" aria-label="Status ${DKM.escape(person.nama_lengkap)}">
         <option>Hadir</option><option>Izin</option><option>Sakit</option><option>Alpha</option></select>
     </div>`).join('') : '<div class="empty-state">Tidak ada jamaah sesuai kategori ini.</div>';
