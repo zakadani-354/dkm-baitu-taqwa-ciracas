@@ -101,7 +101,7 @@ window.Presensi = {
           throw new Error('Database belum menerima status presensi terbaru. Jalankan ulang database.sql di Supabase, lalu input kembali presensi.');
         }
         if (result.error.code === 'PGRST202' && result.error.message.includes('admin_update_presensi_status')) {
-          throw new Error('Fitur edit status belum tersedia di database. Jalankan ulang database.sql di Supabase.');
+          throw new Error('API Supabase belum mengenali fungsi edit status. Jalankan database.sql terbaru sampai selesai, lalu muat ulang aplikasi.');
         }
         throw result.error;
       }
@@ -391,7 +391,7 @@ window.Presensi = {
     document.getElementById('presensiView').innerHTML = `<section class="card card-pad mb-4"><div class="flex max-w-lg flex-wrap items-end gap-3">
       <label class="field-label flex-1">Bulan<input id="hasdaMonth" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
       <button id="hasdaRefresh" class="btn-secondary">Tampilkan</button></div></section>
-      <section class="card card-pad"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Jamaah Alpha pada Pengajian Umum HASDA</h2><button id="copyHasda" class="btn-primary">${DKM.icon('copy')}Salin Teks</button></div>
+      <section class="card card-pad"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Jamaah tidak hadir (Izin/Sakit/Alpha) pada Pengajian Umum HASDA</h2><button id="copyHasda" class="btn-primary">${DKM.icon('copy')}Salin Teks</button></div>
       <pre id="hasdaMessage" class="whitespace-pre-wrap rounded-xl border border-[#E6E0D6] bg-[#F7F4EF] p-4 text-sm leading-6"></pre>
       <div id="hasdaPeople" class="mt-4"></div></section>`;
     document.getElementById('hasdaRefresh').addEventListener('click',() => {
@@ -411,17 +411,24 @@ window.Presensi = {
     const { data } = await this.runQuery(() => query,'Memuat data HASDA...');
     const missed = new Map();
     (data || []).forEach(session => (session.presensi_detail || []).forEach(detail => {
-      if (detail.status === 'Alpha' && detail.jamaah?.nama_lengkap) {
+      if (['Izin','Sakit','Alpha'].includes(detail.status) && detail.jamaah?.nama_lengkap) {
         const name = detail.jamaah.nama_lengkap;
-        missed.set(name,(missed.get(name) || 0) + 1);
+        const record = missed.get(name) || { count: 0, statuses: new Set() };
+        record.count++;
+        record.statuses.add(detail.status);
+        missed.set(name,record);
       }
     }));
     const names = [...missed.keys()].sort((a,b) => a.localeCompare(b,'id'));
-    this.hasdaMessage = `Assalamu'alaikum.\n\nDaftar susulan Pengajian Umum HASDA bulan ${month || '-'}:\n${names.length ? names.map((name,index) => `${index + 1}. ${name}${missed.get(name) > 1 ? ` (${missed.get(name)} kali)` : ''}`).join('\n') : 'Tidak ada jamaah dengan status Alpha.'}\n\nMohon ditindaklanjuti. Terima kasih.`;
+    this.hasdaMessage = `Assalamu'alaikum.\n\nDaftar susulan Pengajian Umum HASDA bulan ${month || '-'}:\n${names.length ? names.map((name,index) => {
+      const record = missed.get(name);
+      const statuses = ['Izin','Sakit','Alpha'].filter(status => record.statuses.has(status)).join(', ');
+      return `${index + 1}. ${name} — ${statuses}${record.count > 1 ? ` (${record.count} kali)` : ''}`;
+    }).join('\n') : 'Tidak ada jamaah dengan status Izin, Sakit, atau Alpha.'}\n\nMohon ditindaklanjuti. Terima kasih.`;
     document.getElementById('hasdaMessage').textContent = this.hasdaMessage;
     document.getElementById('hasdaPeople').innerHTML = names.length
-      ? `<p class="text-sm text-muted">${names.length} jamaah tercatat Alpha.</p>`
-      : '<p class="text-sm text-muted">Tidak ada jamaah yang tercatat Alpha pada bulan ini.</p>';
+      ? `<p class="text-sm text-muted">${names.length} jamaah tercatat Izin, Sakit, atau Alpha.</p>`
+      : '<p class="text-sm text-muted">Tidak ada jamaah yang tercatat Izin, Sakit, atau Alpha pada bulan ini.</p>';
   },
   async copyHasda() {
     try { await navigator.clipboard.writeText(this.hasdaMessage); DKM.toast('Teks HASDA disalin.'); }
