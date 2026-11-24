@@ -46,12 +46,6 @@ alter table public.jamaah drop constraint if exists jamaah_status_nikah_check;
 alter table public.jamaah add constraint jamaah_status_nikah_check
   check (status_nikah in ('Menikah','Belum Menikah','Janda','Duda'));
 alter table public.jamaah drop constraint if exists jamaah_kelompok_umur_check;
-alter table public.jamaah add constraint jamaah_kelompok_umur_check
-  check (kelompok_umur in (
-    'Usia Dini (0-6 Tahun)','Caberawit (7-12 Tahun)','SMP-Pra Remaja (13-15 Tahun)',
-    'SMA-Remaja (16-18 Tahun)','PN-Pra Nikah (19-30 Tahun belum menikah)',
-    'PN-Dewasa (Diatas 30 Tahun yang belum menikah)','Menikah'
-  ));
 
 with classification as (
   select id,
@@ -91,6 +85,13 @@ set status_nikah = classification.canonical_status,
     end
 from classification
 where jamaah.id = classification.id;
+
+alter table public.jamaah add constraint jamaah_kelompok_umur_check
+  check (kelompok_umur in (
+    'Usia Dini (0-6 Tahun)','Caberawit (7-12 Tahun)','SMP-Pra Remaja (13-15 Tahun)',
+    'SMA-Remaja (16-18 Tahun)','PN-Pra Nikah (19-30 Tahun belum menikah)',
+    'PN-Dewasa (Diatas 30 Tahun yang belum menikah)','Menikah'
+  ));
 
 -- A safe aggregate snapshot lets the public home page update live without
 -- exposing individual jamaah records to the anon role.
