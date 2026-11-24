@@ -3,7 +3,6 @@ window.DKM = {
   role: null,
   user: null,
   toastTimer: null,
-  dateRefreshTimer: null,
   menu: [
     { id: 'home', title: 'Beranda', icon: 'house' },
     { id: 'presensi', title: 'Presensi', icon: 'clipboard-check', auth: true },
@@ -61,17 +60,6 @@ window.DKM = {
     const [year, month] = value.split('-').map(Number);
     const last = new Date(year, month, 0);
     return { from: `${value}-01`, to: `${year}-${String(month).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
-  },
-  scheduleDateRefresh() {
-    clearTimeout(this.dateRefreshTimer);
-    const now = new Date();
-    const nextYear = new Date(now.getFullYear() + 1, 0, 1);
-    this.dateRefreshTimer = setTimeout(() => {
-      if (this.route === 'jamaah') Jamaah.refreshAgeClassification();
-      else if (this.route === 'home') Home.refresh(document.getElementById('app'));
-      else if (this.route === 'presensi') this.renderRoute();
-      this.scheduleDateRefresh();
-    }, Math.max(1000, nextYear.getTime() - now.getTime()));
   },
   icon(name, classes = '') { return `<i data-lucide="${name}" class="${classes}" aria-hidden="true"></i>`; },
   refreshIcons() { if (window.lucide) window.lucide.createIcons(); },
@@ -149,7 +137,6 @@ window.DKM = {
     }
     const initial = location.hash.slice(1);
     this.navigate(this.menu.some(item => item.id === initial) ? initial : 'home');
-    this.scheduleDateRefresh();
     window.addEventListener('hashchange', () => {
       const hash = location.hash.slice(1);
       if (hash && hash !== this.route) this.navigate(hash);

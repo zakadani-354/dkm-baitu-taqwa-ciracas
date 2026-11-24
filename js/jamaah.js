@@ -75,7 +75,7 @@ window.Jamaah = {
     const body = document.getElementById('jamaahRows');
     body.innerHTML = visible.length ? visible.map(row => `<tr>
       ${DKM.isAdmin ? `<td><input type="checkbox" data-j-check value="${row.id}" ${this.selected.has(row.id) ? 'checked' : ''} aria-label="Pilih ${DKM.escape(row.nama_lengkap)}"></td>` : ''}
-      <td class="font-medium">${DKM.escape(row.nama_lengkap)}</td><td>${(row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur) ?? '-'}</td><td>${DKM.escape(this.classificationFor(row) || '-')}</td>
+      <td class="font-medium">${DKM.escape(row.nama_lengkap)}</td><td>${row.umur ?? '-'}</td><td>${DKM.escape(this.classificationFor(row) || '-')}</td>
       <td>${DKM.escape(row.jenis_kelamin || '-')}</td><td>${DKM.escape(this.maritalStatus(row.status_nikah, row.status_pernikahan) || '-')}</td><td>${DKM.escape(row.pekerjaan || '-')}</td>
       ${DKM.isAdmin ? `<td class="whitespace-nowrap"><button class="icon-button inline-grid mr-1" data-j-action="edit" data-id="${row.id}" aria-label="Ubah"><i data-lucide="pencil"></i></button><button class="icon-button inline-grid text-red-700" data-j-action="delete" data-id="${row.id}" aria-label="Hapus"><i data-lucide="trash-2"></i></button></td>` : ''}
     </tr>`).join('') : `<tr><td class="empty-state" colspan="${DKM.isAdmin ? 8 : 6}">Tidak ada data jamaah.</td></tr>`;
@@ -87,14 +87,6 @@ window.Jamaah = {
     const bulkButton = document.getElementById('bulkDelete');
     if (bulkButton) bulkButton.hidden = this.selected.size === 0;
     DKM.refreshIcons();
-  },
-  refreshAgeClassification() {
-    const search = document.getElementById('jamaahSearch');
-    if (!search) return;
-    this.draw(search.value);
-    this.drawCensus();
-    const birthDate = document.querySelector('#jamaahForm [name="tanggal_lahir"]');
-    if (birthDate) birthDate.dispatchEvent(new Event('change'));
   },
   toggleOne(id, checked) {
     if (checked) this.selected.add(id); else this.selected.delete(id);
@@ -112,7 +104,8 @@ window.Jamaah = {
     const birth = new Date(`${value.slice(0, 10)}T00:00:00`);
     if (Number.isNaN(birth.getTime())) return null;
     const now = new Date();
-    const age = now.getFullYear() - birth.getFullYear();
+    let age = now.getFullYear() - birth.getFullYear();
+    if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
     return age < 0 ? null : age;
   },
   groupFor(age, statusNikah = null) {
@@ -160,10 +153,9 @@ window.Jamaah = {
     }[statusPernikahan] || null;
   },
   classificationFor(row) {
-    const age = row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur;
     const status = this.maritalStatus(row.status_nikah, row.status_pernikahan);
     if (['Janda', 'Duda'].includes(status)) return status;
-    return this.groupFor(age, status) || row.kelompok_umur || '';
+    return row.kelompok_umur || this.groupFor(row.umur, status) || '';
   },
   showTab(tabName) {
     const census = tabName === 'census';
@@ -425,12 +417,7 @@ window.Jamaah = {
   },
   exportExcel() {
     const workbook = XLSX.utils.book_new();
-    const rows = this.rows.map(row => ({
-      ...row,
-      umur: row.tanggal_lahir ? this.ageOf(row.tanggal_lahir) : row.umur,
-      kelompok_umur: this.classificationFor(row)
-    }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'Jamaah');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(this.rows), 'Jamaah');
     XLSX.writeFile(workbook, 'data_jamaah.xlsx');
   }
 };

@@ -59,7 +59,7 @@ with classification as (
       else coalesce(nullif(status_nikah, ''), status_pernikahan)
     end as canonical_status,
     case when tanggal_lahir is not null
-      then extract(year from (now() at time zone 'Asia/Jakarta'))::int - extract(year from tanggal_lahir)::int
+      then extract(year from age((now() at time zone 'Asia/Jakarta')::date, tanggal_lahir))::int
       else umur
     end as current_age,
     kelompok_umur as previous_group
@@ -198,59 +198,8 @@ as $$ select exists (select 1 from public.akun_pengguna where id = (select auth.
 create or replace function public.public_home_stats()
 returns jsonb language sql stable security definer set search_path = public
 as $$
-  with people as (
-    select
-      case
-        when status_nikah in ('Janda','Duda') then status_nikah
-        when status_pernikahan in ('Janda','Duda') then status_pernikahan
-        when status_nikah = 'Menikah' then 'Menikah'
-        when status_nikah = 'Belum Menikah' then 'Belum Menikah'
-        when status_pernikahan = 'Kawin' then 'Menikah'
-        when status_pernikahan = 'Belum Kawin' then 'Belum Menikah'
-        else coalesce(nullif(status_nikah,''),status_pernikahan)
-      end as canonical_status,
-      case when tanggal_lahir is not null
-        then extract(year from (now() at time zone 'Asia/Jakarta'))::int - extract(year from tanggal_lahir)::int
-        else umur
-      end as current_age
-    from public.jamaah
-  ),
-  classified as (
-    select canonical_status,
-      case
-        when canonical_status = 'Menikah' then 'Menikah'
-        when canonical_status in ('Janda','Duda') then null
-        when current_age between 0 and 6 then 'Usia Dini (0-6 Tahun)'
-        when current_age between 7 and 12 then 'Caberawit (7-12 Tahun)'
-        when current_age between 13 and 15 then 'SMP-Pra Remaja (13-15 Tahun)'
-        when current_age between 16 and 18 then 'SMA-Remaja (16-18 Tahun)'
-        when current_age between 19 and 30 then 'PN-Pra Nikah (19-30 Tahun belum menikah)'
-        when current_age > 30 then 'PN-Dewasa (Diatas 30 Tahun yang belum menikah)'
-        else null
-      end as age_group
-    from people
-  ),
-  age_counts as (
-    select coalesce(jsonb_object_agg(age_group, amount), '{}'::jsonb) as stats
-    from (
-      select age_group, count(*) as amount
-      from classified where age_group is not null
-      group by age_group
-    ) groups
-  ),
-  status_counts as (
-    select coalesce(jsonb_object_agg(canonical_status, amount), '{}'::jsonb) as stats
-    from (
-      select canonical_status, count(*) as amount
-      from classified where canonical_status is not null
-      group by canonical_status
-    ) statuses
-  )
-  select jsonb_build_object(
-    'total', (select count(*) from people),
-    'usia', (select stats from age_counts),
-    'status', (select stats from status_counts)
-  )
+  select jsonb_build_object('total',total,'usia',usia,'status',status)
+  from public.statistik_jamaah_public where id = true
 $$;
 
 create or replace function public.admin_create_account(p_nama text, p_username text, p_password text, p_role text)

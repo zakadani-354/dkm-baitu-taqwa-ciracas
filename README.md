@@ -28,7 +28,7 @@ The public home page only receives profile data and aggregate jamaah counts. Per
 
 ## Jamaah and census
 
-Jamaah are classified from age and marital status: Usia Dini (0-6), Caberawit (7-12), SMP-Pra Remaja (13-15), SMA-Remaja (16-18), PN-Pra Nikah (19-30 and unmarried), PN-Dewasa (over 30 and unmarried), or Menikah. Janda and Duda are counted separately, not as PN-Dewasa, and are treated as Kepala Keluarga. Age is recalculated from the birth year, so age-based classifications advance automatically each January 1; records without a birth date cannot be advanced automatically. The Database Jamaah page includes a Sensus Jamaah tab with counts by gender and a household-head count. When updating an existing project, run `database.sql` again to update the live home statistics function and migrate stored classifications and database constraints.
+Jamaah are classified from age and marital status: Usia Dini (0-6), Caberawit (7-12), SMP-Pra Remaja (13-15), SMA-Remaja (16-18), PN-Pra Nikah (19-30 and unmarried), PN-Dewasa (over 30 and unmarried), or Menikah. Janda and Duda are counted separately, not as PN-Dewasa, and are treated as Kepala Keluarga. Age and classification are calculated when a jamaah record is created, edited, or imported; they do not advance automatically at the start of a new year. The Database Jamaah page includes a Sensus Jamaah tab with counts by gender and a household-head count. When updating an existing project, run `database.sql` again to migrate stored classifications and database constraints.
 
 ## Security note
 

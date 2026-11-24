@@ -71,7 +71,7 @@ window.Presensi = {
     if (!DKM.isAdmin) return;
     const type = document.getElementById('attendanceType').value;
     let query = DKM.ready().from('jamaah')
-      .select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin,tanggal_lahir,umur')
+      .select('id,nama_lengkap,kelompok_umur,status_nikah,status_pernikahan,jenis_kelamin,umur')
       .order('nama_lengkap');
     if (type === 'Pengajian Ibu-Ibu') query = query.eq('jenis_kelamin','Perempuan');
     const { data, error } = await DKM.run(() => query, 'Memuat daftar jamaah...');
