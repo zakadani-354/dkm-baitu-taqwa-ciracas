@@ -300,12 +300,12 @@ window.Presensi = {
         <article class="card stat-card"><p class="stat-label">Persentase Kehadiran</p><p id="kpiPercent" class="stat-value">0%</p></article>
       </section>
       <section class="mb-4 grid gap-4 lg:grid-cols-[1.4fr_.6fr]">
-        <article class="card card-pad"><h2 class="mb-3 font-semibold">Tren Kehadiran</h2><canvas id="attendanceBars" aria-label="Grafik tren kehadiran"></canvas></article>
+        <article class="card card-pad"><h2 class="mb-3 font-semibold">Tren Persentase Kehadiran</h2><canvas id="attendanceBars" aria-label="Grafik tren persentase kehadiran"></canvas><div id="attendanceTrendSummary" class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3"></div></article>
         <article class="card card-pad"><h2 class="mb-3 font-semibold">Rasio Kehadiran</h2><canvas id="attendanceDonut" aria-label="Grafik rasio kehadiran"></canvas></article>
       </section>
       <section class="card card-pad"><div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="font-semibold">Rekap Per Nama Jamaah</h2>
-        <label class="field-label">Tingkat<select id="attendanceLevel" class="select mt-1"><option value="all">Semua</option><option value="high">&gt;80%</option><option value="mid">50–80%</option><option value="low">&lt;50%</option></select></label>
+        <label class="field-label">Tingkat<select id="attendanceLevel" class="select mt-1"><option value="all">Semua</option><option value="zero">0%</option><option value="high">&gt;80%</option><option value="mid">50–80%</option><option value="low">&lt;50%</option></select></label>
       </div><div class="table-wrap"><table><thead><tr><th>Nama</th><th>Hadir</th><th>Total Sesi</th><th>Persentase</th></tr></thead><tbody id="attendanceTable"></tbody></table></div></section>
     </section>
     <div class="mt-4 flex flex-wrap gap-2"><button class="btn-secondary" id="shareDashboard">${DKM.icon('image')}Simpan PNG</button><button class="btn-primary" id="pdfDashboard">${DKM.icon('file-down')}Ekspor PDF</button></div>`;
@@ -351,23 +351,44 @@ window.Presensi = {
     if (this.chartBar) this.chartBar.destroy();
     if (this.chartDonut) this.chartDonut.destroy();
     const labels = [...perDate.keys()].map(date => DKM.formatDate(date,{day:'numeric',month:'short'}));
+    const trend = [...perDate.values()].map(item => ({
+      ...item,
+      percent: item.total ? Math.round(item.present / item.total * 100) : 0
+    }));
+    document.getElementById('attendanceTrendSummary').innerHTML = labels.map((date,index) =>
+      `<p class="rounded-lg bg-[#F7F4EF] px-3 py-2 text-xs"><span class="text-muted">${date}</span><br><strong>${trend[index].percent}% (${trend[index].present} dari ${trend[index].total} orang)</strong></p>`
+    ).join('');
     this.chartBar = new Chart(document.getElementById('attendanceBars'),{
-      type:'bar',data:{labels,datasets:[
-        {label:'Hadir',data:[...perDate.values()].map(item => item.present),backgroundColor:'#667F6E'},
-        {label:'Total',data:[...perDate.values()].map(item => item.total),backgroundColor:'#D9DFD9'}
-      ]},options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+      type:'line',data:{labels,datasets:[
+        {label:'Persentase Hadir',data:trend.map(item => item.percent),borderColor:'#667F6E',backgroundColor:'#667F6E',tension:.25}
+      ]},options:{responsive:true,scales:{y:{min:0,max:100,ticks:{callback:value => `${value}%`}}},plugins:{
+        legend:{position:'bottom'},
+        tooltip:{callbacks:{label:context => {
+          const item = trend[context.dataIndex];
+          return `${item.percent}% (${item.present} dari ${item.total} orang)`;
+        }}}
+      }}
     });
+    const statuses = ['Hadir','Izin','Sakit','Alpha'];
+    const statusCounts = statuses.map(status => details.filter(detail => detail.status === status).length);
+    const statusLabels = statuses.map((status,index) =>
+      `${status}: ${required ? Math.round(statusCounts[index] / required * 100) : 0}% (${statusCounts[index]} orang)`
+    );
     this.chartDonut = new Chart(document.getElementById('attendanceDonut'),{
-      type:'doughnut',data:{labels:['Hadir','Izin','Sakit','Alpha'],datasets:[{
-        data:['Hadir','Izin','Sakit','Alpha'].map(status => details.filter(detail => detail.status === status).length),
+      type:'doughnut',data:{labels:statusLabels,datasets:[{
+        data:statusCounts,
         backgroundColor:['#667F6E','#D9B56D','#8FA8C2','#C98278']
       }]},
-      options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+      options:{responsive:true,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:context => {
+        const count = statusCounts[context.dataIndex];
+        return `${statuses[context.dataIndex]}: ${required ? Math.round(count / required * 100) : 0}% (${count} orang)`;
+      }}}}}
     });
   },
   drawAttendanceTable() {
     const filter = document.getElementById('attendanceLevel').value;
-    const rows = this.attendanceRows.filter(row => filter === 'high' ? row.percent > 80
+    const rows = this.attendanceRows.filter(row => filter === 'zero' ? row.percent === 0
+      : filter === 'high' ? row.percent > 80
       : filter === 'mid' ? row.percent >= 50 && row.percent <= 80
         : filter === 'low' ? row.percent < 50 : true);
     document.getElementById('attendanceTable').innerHTML = rows.length ? rows.map(row =>
