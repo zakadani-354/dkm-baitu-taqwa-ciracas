@@ -34,6 +34,8 @@ Attendance candidates are filtered by the saved age and marital status: Pengajia
 
 The attendance dashboard plots daily attendance percentages and shows the attended/required counts; its status ratio shows each status percentage and person count. Dashboard filters support a start/end month period, an optional meeting date list for a selected pengajian type, and a per-person attendance filter with a dedicated 0% option.
 
+The Program Masjid page can share agenda items for a selected date range through WhatsApp.
+
 ## Security note
 
 `.env` and `.env.*` are ignored by Git. This is a static browser app, so it cannot read `.env` directly. The Supabase publishable/anon key is intended to be visible in browser code; database security must come from the included RLS policies. Never use a Supabase `service_role` or other private key in frontend code.

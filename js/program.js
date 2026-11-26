@@ -5,7 +5,8 @@ window.Program = {
   async render(root) {
     root.innerHTML = `<div class="page-wrap">
       <header class="page-heading"><div><p class="eyebrow">Agenda Masjid</p><h1 class="text-3xl font-semibold">Program Masjid</h1></div>
-        ${DKM.isAdmin ? `<button class="btn-primary" data-program-action="new">${DKM.icon('plus')}Tambah Agenda</button>` : ''}
+        <div class="flex flex-wrap gap-2"><button class="btn-secondary" data-program-action="share">${DKM.icon('share-2')}Share</button>
+        ${DKM.isAdmin ? `<button class="btn-primary" data-program-action="new">${DKM.icon('plus')}Tambah Agenda</button>` : ''}</div>
       </header>
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div class="segmented"><button class="segment active" data-view="month">Bulanan</button><button class="segment" data-view="agenda">Per Tanggal</button></div>
@@ -20,6 +21,7 @@ window.Program = {
       if (delta) this.changeMonth(delta);
       const action = event.target.closest('[data-program-action]');
       if (action?.dataset.programAction === 'new') this.openForm();
+      if (action?.dataset.programAction === 'share') this.openShareDialog();
       const eventButton = event.target.closest('[data-program-id]');
       if (eventButton) {
         const row = this.rows.find(item => item.id === eventButton.dataset.programId);
@@ -81,6 +83,77 @@ window.Program = {
       host.innerHTML = `<section class="card calendar-scroll"><div class="calendar-grid">${days.join('')}</div></section>`;
     }
     DKM.refreshIcons();
+  },
+  openShareDialog() {
+    const today = new Date();
+    const weekStart = new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const dialog = document.getElementById('programDialog');
+    dialog.innerHTML = `<form id="programShareForm" class="modal-card">
+      <button type="button" class="icon-button modal-close" data-close aria-label="Tutup"><i data-lucide="x"></i></button>
+      <h2 class="mb-2 text-xl font-semibold">Bagikan Agenda</h2>
+      <p class="mb-5 text-sm text-muted">Pilih periode agenda yang akan dibagikan melalui WhatsApp.</p>
+      <div class="form-grid">
+        <label class="field-label">Dari tanggal<input class="input mt-1" name="tanggal_mulai" type="date" required value="${this.dateKey(weekStart)}"></label>
+        <label class="field-label">Sampai tanggal<input class="input mt-1" name="tanggal_selesai" type="date" required value="${this.dateKey(weekEnd)}"></label>
+      </div>
+      <div class="mt-5 flex justify-end gap-2"><button class="btn-secondary" type="button" data-close>Batal</button><button class="btn-primary" type="submit">${DKM.icon('share-2')}Bagikan ke WhatsApp</button></div>
+    </form>`;
+    dialog.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click',() => dialog.close()));
+    dialog.querySelector('#programShareForm').addEventListener('submit',event => {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      this.sharePeriod(String(formData.get('tanggal_mulai')),String(formData.get('tanggal_selesai')));
+    });
+    dialog.showModal();
+    DKM.refreshIcons();
+  },
+  sharePeriod(start,end) {
+    if (!start || !end || start > end) {
+      DKM.toast('Rentang tanggal tidak valid.','error');
+      return;
+    }
+    const events = this.rows.filter(row => row.tanggal >= start && row.tanggal <= end)
+      .sort((a,b) => a.tanggal.localeCompare(b.tanggal) || (a.waktu_mulai || '').localeCompare(b.waktu_mulai || ''));
+    if (!events.length) {
+      DKM.toast('Tidak ada agenda pada periode tanggal tersebut.','info');
+      return;
+    }
+    const now = new Date();
+    const currentWeekStart = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    currentWeekStart.setDate(currentWeekStart.getDate() - ((currentWeekStart.getDay() + 6) % 7));
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+    const isCurrentWeek = start === this.dateKey(currentWeekStart) && end === this.dateKey(currentWeekEnd);
+    const displayDate = value => DKM.formatDate(value,{day:'numeric',month:'long',year:'numeric'});
+    const agenda = events.map((row,index) => {
+      const date = new Date(`${row.tanggal}T00:00:00`);
+      const lines = [
+        `*${index + 1}. ${row.judul_program}*`,
+        `* Hari : ${date.toLocaleDateString('id-ID',{weekday:'long'})}`,
+        `* Tanggal : ${displayDate(row.tanggal)}`
+      ];
+      if (row.waktu_mulai) {
+        const time = row.waktu_mulai.slice(0,5) + (row.waktu_selesai ? `-${row.waktu_selesai.slice(0,5)}` : '');
+        lines.push(`* Waktu : ${time}`);
+      }
+      if (row.penanggung_jawab) lines.push(`* Penanggung Jawab : ${row.penanggung_jawab}`);
+      if (row.keterangan) {
+        lines.push(...row.keterangan.split(/\r?\n/).map(line => line.trim()).filter(Boolean));
+      }
+      return lines.join('\n');
+    }).join('\n\n');
+    const period = isCurrentWeek ? 'minggu ini' : `periode ${displayDate(start)} sampai ${displayDate(end)}`;
+    const message = `السلام عليكم ورحمة الله وبركاته.\n\nBerikut kami sampaikan agenda amrin jami'in ${period} :\n\n${agenda}\n\nDemikian informasi dari kami, semoga Alloh paring lancar barokah.\n\nالحمد لله جزاكم الله خيرا\nوالسلام عليكم ورحمة الله وبركاته.`;
+    const popup = window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank');
+    if (!popup) {
+      DKM.toast('WhatsApp tidak dapat dibuka. Izinkan pop-up lalu coba lagi.','error');
+      return;
+    }
+    popup.opener = null;
+    document.getElementById('programDialog').close();
   },
   openForm(row = {}) {
     if (!DKM.isAdmin) return;
