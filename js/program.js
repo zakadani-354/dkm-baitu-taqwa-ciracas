@@ -162,7 +162,6 @@ window.Program = {
       if (details.materi) lines.push([this.flyerIcon('book'),`Materi: ${details.materi}`]);
       if (details.tempat) lines.push([this.flyerIcon('pin'),`Tempat: ${details.tempat}`]);
       if (details.peserta) lines.push([this.flyerIcon('users'),`Peserta: ${details.peserta}`]);
-      if (row.penanggung_jawab) lines.push([this.flyerIcon('person'),`Penanggung jawab: ${row.penanggung_jawab}`]);
       if (details.catatan.length) lines.push([this.flyerIcon('info'),details.catatan.join(' ')]);
       return `<article class="flyer-event">
         <div class="flyer-date">
