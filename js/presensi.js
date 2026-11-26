@@ -394,9 +394,25 @@ window.Presensi = {
       `<p class="rounded-lg bg-[#F7F4EF] px-3 py-2 text-xs"><span class="text-muted">${date}</span><br><strong>${trend[index].percent}% (${trend[index].present} dari ${trend[index].total} orang)</strong></p>`
     ).join('');
     this.chartBar = new Chart(document.getElementById('attendanceBars'),{
-      type:'line',data:{labels,datasets:[
-        {label:'Persentase Hadir',data:trend.map(item => item.percent),borderColor:'#667F6E',backgroundColor:'#667F6E',tension:.25}
-      ]},options:{responsive:true,scales:{y:{min:0,max:100,ticks:{callback:value => `${value}%`}}},plugins:{
+      type:'bar',data:{labels,datasets:[
+        {label:'Persentase Hadir',data:trend.map(item => item.percent),borderColor:'#667F6E',backgroundColor:'#A7B6A7',borderRadius:5,maxBarThickness:48}
+      ]},plugins:[{
+        id:'attendanceBarLabels',
+        afterDatasetsDraw(chart) {
+          const { ctx } = chart;
+          const values = chart.data.datasets[0].data;
+          ctx.save();
+          ctx.font = '600 12px Inter, sans-serif';
+          ctx.fillStyle = '#2C332E';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          chart.getDatasetMeta(0).data.forEach((bar,index) => {
+            const { x, y } = bar.getProps(['x','y'],true);
+            ctx.fillText(`${values[index]}%`,x,y - 6);
+          });
+          ctx.restore();
+        }
+      }],options:{responsive:true,layout:{padding:{top:24}},scales:{y:{min:0,max:100,ticks:{stepSize:20,callback:value => `${value}%`}}},plugins:{
         legend:{position:'bottom'},
         tooltip:{callbacks:{label:context => {
           const item = trend[context.dataIndex];
