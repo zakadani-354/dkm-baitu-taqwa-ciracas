@@ -296,7 +296,6 @@ window.Presensi = {
         <label class="field-label">Dari bulan<input id="dashMonthFrom" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
         <label class="field-label">Sampai bulan<input id="dashMonthTo" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
         <label id="dashDateWrap" class="field-label" hidden>Tanggal pertemuan<select id="dashDate" class="select mt-1"><option value="">Semua tanggal</option></select></label>
-        <button id="dashApply" class="btn-secondary self-end">Terapkan Filter</button>
       </div></section>
       <section class="mb-4 grid gap-3 sm:grid-cols-3">
         <article class="card stat-card"><p class="stat-label">Berkewajiban Hadir</p><p id="kpiRequired" class="stat-value">0</p></article>
@@ -313,13 +312,15 @@ window.Presensi = {
       </div><div class="table-wrap"><table><thead><tr><th>Nama</th><th>Hadir</th><th>Total Sesi</th><th>Persentase</th></tr></thead><tbody id="attendanceTable"></tbody></table></div></section>
     </section>
     <div class="mt-4 flex flex-wrap gap-2"><button class="btn-secondary" id="shareDashboard">${DKM.icon('image')}Simpan PNG</button><button class="btn-primary" id="pdfDashboard">${DKM.icon('file-down')}Ekspor PDF</button></div>`;
-    document.getElementById('dashApply').addEventListener('click',() => {
+    const reloadDashboard = () => {
       this.loadDashboard().catch(error => console.error('Gagal memuat dashboard presensi:', error));
-    });
+    };
     document.getElementById('dashType').addEventListener('change',() => {
       document.getElementById('dashDate').value = '';
-      this.loadDashboard().catch(error => console.error('Gagal memuat dashboard presensi:', error));
+      reloadDashboard();
     });
+    document.getElementById('dashMonthFrom').addEventListener('change',reloadDashboard);
+    document.getElementById('dashMonthTo').addEventListener('change',reloadDashboard);
     document.getElementById('dashDate').addEventListener('change',() => this.updateDashboard());
     document.getElementById('attendanceLevel').addEventListener('change',() => this.drawAttendanceTable());
     document.getElementById('shareDashboard').addEventListener('click',() => this.exportCanvas('png'));
