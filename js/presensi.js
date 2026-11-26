@@ -4,6 +4,8 @@ window.Presensi = {
   chartDonut: null,
   historyRows: [],
   attendanceRows: [],
+  dashboardSessions: [],
+  dashboardLoadId: 0,
   candidateLoadId: 0,
   hasdaMessage: '',
   async render(root) {
@@ -289,9 +291,11 @@ window.Presensi = {
   },
   async renderDashboard() {
     document.getElementById('presensiView').innerHTML = `<section id="dashboardArea">
-      <section class="card card-pad mb-4"><div class="grid gap-3 sm:grid-cols-3">
+      <section class="card card-pad mb-4"><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label class="field-label">Jenis<select id="dashType" class="select mt-1"><option value="">Semua jenis</option>${this.typeOptions()}</select></label>
-        <label class="field-label">Bulan<input id="dashMonth" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
+        <label class="field-label">Dari bulan<input id="dashMonthFrom" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
+        <label class="field-label">Sampai bulan<input id="dashMonthTo" class="input mt-1" type="month" value="${DKM.monthValue()}"></label>
+        <label id="dashDateWrap" class="field-label" hidden>Tanggal pertemuan<select id="dashDate" class="select mt-1"><option value="">Semua tanggal</option></select></label>
         <button id="dashApply" class="btn-secondary self-end">Terapkan Filter</button>
       </div></section>
       <section class="mb-4 grid gap-3 sm:grid-cols-3">
@@ -312,21 +316,51 @@ window.Presensi = {
     document.getElementById('dashApply').addEventListener('click',() => {
       this.loadDashboard().catch(error => console.error('Gagal memuat dashboard presensi:', error));
     });
+    document.getElementById('dashType').addEventListener('change',() => {
+      document.getElementById('dashDate').value = '';
+      this.loadDashboard().catch(error => console.error('Gagal memuat dashboard presensi:', error));
+    });
+    document.getElementById('dashDate').addEventListener('change',() => this.updateDashboard());
     document.getElementById('attendanceLevel').addEventListener('change',() => this.drawAttendanceTable());
     document.getElementById('shareDashboard').addEventListener('click',() => this.exportCanvas('png'));
     document.getElementById('pdfDashboard').addEventListener('click',() => this.exportCanvas('pdf'));
     await this.loadDashboard();
   },
   async loadDashboard() {
+    const loadId = ++this.dashboardLoadId;
+    const monthFrom = document.getElementById('dashMonthFrom').value;
+    const monthTo = document.getElementById('dashMonthTo').value;
     let query = DKM.ready().from('presensi_sesi')
       .select('id,tanggal,jenis_pengajian,presensi_detail(status,jamaah_id,jamaah(nama_lengkap))')
       .order('tanggal',{ascending:true});
-    const month = document.getElementById('dashMonth').value;
     const type = document.getElementById('dashType').value;
-    if (month) { const range = DKM.monthBounds(month); query = query.gte('tanggal',range.from).lte('tanggal',range.to); }
+    if (monthFrom && monthTo && monthFrom > monthTo) {
+      DKM.toast('Bulan awal tidak boleh melewati bulan akhir.','error');
+      return;
+    }
+    if (monthFrom) query = query.gte('tanggal',DKM.monthBounds(monthFrom).from);
+    if (monthTo) query = query.lte('tanggal',DKM.monthBounds(monthTo).to);
     if (type) query = query.eq('jenis_pengajian',type);
     const { data } = await this.runQuery(() => query,'Menghitung dashboard...');
-    const sessions = data || [], details = sessions.flatMap(session => session.presensi_detail || []);
+    if (loadId !== this.dashboardLoadId) return;
+    this.dashboardSessions = data || [];
+    const dateWrap = document.getElementById('dashDateWrap');
+    const dateSelect = document.getElementById('dashDate');
+    dateWrap.hidden = !type;
+    const previousDate = dateSelect.value;
+    const dates = [...new Set(this.dashboardSessions.map(session => session.tanggal))];
+    dateSelect.innerHTML = `<option value="">Semua tanggal</option>${dates.map(date =>
+      `<option value="${DKM.escape(date)}">${DKM.escape(DKM.formatDate(date))}</option>`
+    ).join('')}`;
+    if (dates.includes(previousDate)) dateSelect.value = previousDate;
+    this.updateDashboard();
+  },
+  updateDashboard() {
+    const selectedDate = document.getElementById('dashDate').value;
+    const sessions = selectedDate
+      ? this.dashboardSessions.filter(session => session.tanggal === selectedDate)
+      : this.dashboardSessions;
+    const details = sessions.flatMap(session => session.presensi_detail || []);
     const required = details.length, present = details.filter(detail => detail.status === 'Hadir').length;
     document.getElementById('kpiRequired').textContent = required.toLocaleString('id-ID');
     document.getElementById('kpiPresent').textContent = present.toLocaleString('id-ID');

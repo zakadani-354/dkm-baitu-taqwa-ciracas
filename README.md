@@ -32,7 +32,7 @@ Jamaah are classified from age and marital status: Usia Dini (0-6), Caberawit (7
 
 Attendance candidates are filtered by the saved age and marital status: Pengajian Umum includes jamaah aged 13 and above; Pengajian Ibu-Ibu includes married women and widows; Pembinaan Generus includes SMP (13-15), SMA (16-18), and PN (19-30, only Belum Menikah). Attendance statuses are Hadir, Izin, Sakit, and Alpha. Admins can edit all jamaah statuses for a session from its Riwayat row. Teks Susulan lists jamaah marked Izin, Sakit, or Alpha for Pengajian Umum sessions marked HASDA. Re-run `database.sql` on an existing project to migrate previous `Tidak Hadir` records to `Alpha`, update the status constraint, install the atomic status-edit function, and refresh the Supabase API schema cache.
 
-The attendance dashboard plots daily attendance percentages and shows the attended/required counts; its status ratio shows each status percentage and person count. The per-person attendance filter includes a dedicated 0% option.
+The attendance dashboard plots daily attendance percentages and shows the attended/required counts; its status ratio shows each status percentage and person count. Dashboard filters support a start/end month period, an optional meeting date list for a selected pengajian type, and a per-person attendance filter with a dedicated 0% option.
 
 ## Security note
 
