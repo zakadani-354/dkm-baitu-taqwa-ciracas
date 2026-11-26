@@ -194,32 +194,24 @@ window.Program = {
     return pages;
   },
   flyerMarkup({ title,period,events }) {
-    const domePath = 'M58 1440V700c0-96 43-164 125-209 63-35 127-38 169-79 43-42 33-98 45-157C411 190 459 106 540 34c81 72 129 156 143 221 12 59 2 115 45 157 42 41 106 44 169 79 82 45 125 113 125 209v740z';
     return `<article id="programFlyer" class="program-flyer">
-      <svg class="flyer-pattern" viewBox="0 0 1080 1500" preserveAspectRatio="none" aria-hidden="true">
-        <defs><pattern id="flyerStarPattern" width="120" height="120" patternUnits="userSpaceOnUse">
-          <path d="m60 5 12 33 34-14-15 33 34 3-29 19 24 25-35-7-8 35-17-31-27 21 5-35-35-5 27-22-20-28 34 11zM0 0l60 60L120 0M0 120l60-60 60 60M60 0v120M0 60h120" fill="none" stroke="#C9A656" stroke-opacity=".25" stroke-width="1.5"/>
-        </pattern></defs>
-        <rect width="1080" height="1500" fill="#163020"/><rect width="1080" height="1500" fill="url(#flyerStarPattern)"/>
-      </svg>
-      <svg class="flyer-dome-frame" viewBox="0 0 1080 1500" preserveAspectRatio="none" aria-hidden="true">
+      <svg class="flyer-top-dome" viewBox="0 0 1080 480" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="flyerGoldBorder" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D4AF37"/><stop offset=".5" stop-color="#F3E5AB"/><stop offset="1" stop-color="#B8860B"/></linearGradient>
-          <pattern id="flyerIvoryMarble" width="190" height="190" patternUnits="userSpaceOnUse">
-            <rect width="190" height="190" fill="#F6F2E9"/>
-            <path d="M-20 45c44-30 70 28 116-3s57-17 108 7M-30 132c48-35 79 25 121-4s67-17 112 8M35-20c-4 38 21 49 6 79s-17 50 6 76" fill="none" stroke="#BDAE8D" stroke-opacity=".14" stroke-width="2"/>
-            <path d="M5 95c35-13 37 10 71-2s44-10 77 4" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3"/>
+          <pattern id="flyerEmeraldPattern" width="120" height="120" patternUnits="userSpaceOnUse">
+            <rect width="120" height="120" fill="#163020"/>
+            <path d="m60 5 12 33 34-14-15 33 34 3-29 19 24 25-35-7-8 35-17-31-27 21 5-35-35-5 27-22-20-28 34 11zM0 0l60 60L120 0M0 120l60-60 60 60M60 0v120M0 60h120" fill="none" stroke="#C9A656" stroke-opacity=".25" stroke-width="1.5"/>
           </pattern>
-          <filter id="flyerDomeShadow" x="-15%" y="-12%" width="130%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#09170E" flood-opacity=".65"/></filter>
+          <filter id="flyerDomeShadow" x="-12%" y="-15%" width="124%" height="135%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#09170E" flood-opacity=".45"/></filter>
         </defs>
-        <path id="flyerDomeShape" d="${domePath}" fill="url(#flyerIvoryMarble)" stroke="url(#flyerGoldBorder)" stroke-width="18" filter="url(#flyerDomeShadow)"/>
-        <path class="flyer-dome-outline" d="${domePath}" fill="none" stroke="#F3E5AB" stroke-width="5"/>
+        <path d="M64 458V300c0-68 29-112 91-145 60-32 126-22 199-50 67-26 102-77 186-100 84 23 119 74 186 100 73 28 139 18 199 50 62 33 91 77 91 145v158z" fill="url(#flyerEmeraldPattern)" stroke="url(#flyerGoldBorder)" stroke-width="12" filter="url(#flyerDomeShadow)"/>
+        <path d="M64 458V300c0-68 29-112 91-145 60-32 126-22 199-50 67-26 102-77 186-100 84 23 119 74 186 100 73 28 139 18 199 50 62 33 91 77 91 145v158z" fill="none" stroke="#F3E5AB" stroke-width="3"/>
       </svg>
       <div class="flyer-content">
         <header class="flyer-header">
           <svg class="flyer-lantern flyer-lantern-left" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
           <svg class="flyer-lantern flyer-lantern-right" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
-          <span class="flyer-logo-ring"><img class="flyer-logo" src="logo.png" alt="Logo Masjid Baitu Taqwa"></span>
+          <img class="flyer-logo" src="logo.png" alt="Logo Masjid Baitu Taqwa">
           <p class="flyer-kicker">DKM MASJID BAITU TAQWA</p>
           <h1>${DKM.escape(title)}</h1>
           <p class="flyer-period">${DKM.escape(period)}</p>
@@ -240,23 +232,6 @@ window.Program = {
         </footer>
       </div>
     </article>`;
-  },
-  fitFlyerFrame(flyerRoot) {
-    const flyer = flyerRoot.querySelector('#programFlyer');
-    const height = Math.ceil(flyer.getBoundingClientRect().height);
-    const bottom = height - 25;
-    flyerRoot.querySelectorAll('.flyer-pattern,.flyer-dome-frame').forEach(svg => {
-      svg.setAttribute('viewBox',`0 0 1080 ${height}`);
-    });
-    flyerRoot.querySelectorAll('.flyer-pattern rect').forEach(rect => rect.setAttribute('height',String(height)));
-    const dome = flyerRoot.querySelector('#flyerDomeShape');
-    const path = dome.getAttribute('d');
-    if (!path.startsWith('M58 1440V700') || !path.endsWith('v740z')) {
-      throw new Error('Bentuk kubah flyer tidak dapat disesuaikan dengan tinggi konten.');
-    }
-    const fittedPath = path.replace('M58 1440V700',`M58 ${bottom}V700`).replace('v740z',`v${bottom - 700}z`);
-    dome.setAttribute('d',fittedPath);
-    flyerRoot.querySelector('.flyer-dome-outline').setAttribute('d',fittedPath);
   },
   downloadFlyer(blob,filename) {
     const url = URL.createObjectURL(blob);
@@ -299,7 +274,6 @@ window.Program = {
         document.body.appendChild(flyerRoot);
         if (document.fonts?.ready) await document.fonts.ready;
         await flyerRoot.querySelector('.flyer-logo').decode();
-        this.fitFlyerFrame(flyerRoot);
         const canvas = await html2canvas(flyerRoot.querySelector('#programFlyer'),{scale:3,backgroundColor:'#F3EFE6'});
         const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
         if (!blob) throw new Error(`Browser gagal membuat flyer ${index + 1}.`);
