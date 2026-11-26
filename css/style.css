@@ -72,6 +72,39 @@ td{border-top:1px solid #EFEAE2;padding:12px;font-size:.86rem;vertical-align:mid
 .status-select{width:100%;min-width:0}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .span-2{grid-column:span 2}
+.program-flyer-offscreen{position:fixed;top:0;left:-12000px;z-index:-1;width:1080px;pointer-events:none}
+.program-flyer{position:relative;isolation:isolate;box-sizing:border-box;min-height:1300px;overflow:hidden;padding:70px 72px 180px;background-color:#F3EFE6;background-image:radial-gradient(rgba(96,83,56,.12) .7px,transparent .9px),radial-gradient(rgba(255,255,255,.32) .7px,transparent 1px);background-position:0 0,3px 4px;background-size:8px 8px;color:#1E281A}
+.program-flyer::before{position:absolute;inset:0;z-index:0;background:linear-gradient(135deg,rgba(255,255,255,.17),transparent 42%,rgba(176,157,117,.08));content:"";pointer-events:none}
+.flyer-corner{position:absolute;top:0;left:0;z-index:1;width:360px;height:340px}
+.flyer-mosque{position:absolute;right:0;bottom:54px;left:0;z-index:0;width:100%;height:340px;opacity:.07}
+.flyer-waves{position:absolute;right:0;bottom:0;left:0;z-index:0;width:100%;height:220px}
+.flyer-content{position:relative;z-index:2;display:flex;min-height:1050px;flex-direction:column}
+.flyer-header{position:relative;margin:0 0 16px;padding:35px 100px 32px;text-align:center}
+.flyer-lantern{position:absolute;top:0;width:76px;height:152px}
+.flyer-lantern-left{left:10px}
+.flyer-lantern-right{right:10px}
+.flyer-kicker{margin:0 0 13px;color:#7A7654;font-size:15px;font-weight:700;letter-spacing:.24em}
+.flyer-header h1{margin:0;color:#1E281A;font-family:Georgia,"Times New Roman",serif;font-size:43px;font-weight:700;line-height:1.16}
+.flyer-period{margin:16px 0 0;color:#4A5641;font-size:18px;font-weight:600;letter-spacing:.06em}
+.flyer-header-rule{display:block;width:170px;height:2px;margin:22px auto 0;background:#9E8A5E}
+.flyer-events{position:relative}
+.flyer-event{position:relative;display:grid;grid-template-columns:230px 2px minmax(0,1fr);column-gap:34px;padding:34px 0;border-bottom:1px solid #B5A47E}
+.flyer-event:last-child{border-bottom:0}
+.flyer-date{display:flex;align-items:center;flex-direction:column;text-align:center}
+.flyer-date strong{color:#1E281A;font-size:64px;font-weight:800;line-height:1}
+.flyer-date>span:not(.flyer-month){margin-top:8px;color:#1E281A;font-size:18px;font-weight:700;letter-spacing:.07em}
+.flyer-month{display:inline-block;margin-top:12px;border-radius:6px;background:#7A7654;padding:8px 12px;color:#fff;font-size:14px;font-weight:700;letter-spacing:.04em}
+.flyer-event-divider{position:relative;background:#9E8A5E}
+.flyer-event-divider i{position:absolute;top:58px;left:50%;width:11px;height:11px;transform:translateX(-50%);border:2px solid #F3EFE6;border-radius:50%;background:#9E8A5E}
+.flyer-event-content{min-width:0;padding:4px 0}
+.flyer-event-content h2{margin:0;color:#1E281A;font-size:24px;font-weight:700;line-height:1.3}
+.flyer-badge{display:inline-flex;margin-top:12px;border-radius:999px;background:#4A5641;padding:7px 14px;color:#fff;font-size:14px;font-weight:600}
+.flyer-details{display:grid;gap:12px;margin-top:18px}
+.flyer-detail{display:flex;align-items:flex-start;gap:11px;color:#2A3326;font-size:17px;line-height:1.45;overflow-wrap:anywhere}
+.flyer-detail span{white-space:pre-line}
+.flyer-detail-icon{width:23px;height:23px;flex:none;margin-top:1px}
+.flyer-footer{margin-top:auto;padding:30px 0 8px;color:#fff;text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:20px;font-weight:700;letter-spacing:.03em}
+.flyer-footer span{display:block;margin-top:9px;font-size:18px}
 [hidden]{display:none!important}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{border-radius:99px;background:#CFC7BB}

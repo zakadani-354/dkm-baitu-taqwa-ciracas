@@ -34,7 +34,7 @@ Attendance candidates are filtered by the saved age and marital status: Pengajia
 
 The attendance dashboard plots daily attendance percentages and shows the attended/required counts; its status ratio shows each status percentage and person count. Dashboard filters support a start/end month period, an optional meeting date list for a selected pengajian type, and a per-person attendance filter with a dedicated 0% option.
 
-The Program Masjid page can share agenda items for a selected date range through WhatsApp.
+The Program Masjid page can export agenda items for a selected date range as a high-resolution flyer image and share it with supported apps or download it as a PNG.
 
 ## Security note
 
