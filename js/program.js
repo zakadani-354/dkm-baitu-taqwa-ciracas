@@ -179,6 +179,34 @@ window.Program = {
       </article>`;
     }).join('');
   },
+  splitFlyerEvents(rows) {
+    const pages = [];
+    let page = [], weight = 0;
+    rows.forEach(row => {
+      const details = this.parseFlyerDetails(row.keterangan);
+      const detailText = [
+        row.waktu_mulai,
+        details.waktu,
+        row.penanggung_jawab,
+        details.tempat,
+        details.materi,
+        details.peserta,
+        details.badge,
+        details.catatan.join(' ')
+      ].filter(Boolean).join('\n');
+      const lineCount = detailText ? detailText.split(/\r?\n/).length : 0;
+      const eventWeight = 1 + row.judul_program.length / 120 + detailText.length / 180 + lineCount * .22;
+      if (page.length && (page.length >= 2 || weight + eventWeight > 4.2)) {
+        pages.push(page);
+        page = [];
+        weight = 0;
+      }
+      page.push(row);
+      weight += eventWeight;
+    });
+    if (page.length) pages.push(page);
+    return pages;
+  },
   flyerMarkup({ title,period,events }) {
     return `<article id="programFlyer" class="program-flyer">
       <svg class="flyer-corner" viewBox="0 0 360 340" aria-hidden="true"><path d="M0 0h360C296 49 292 130 229 183 167 236 77 259 0 340z" fill="#1F2A1C"/><path d="M0 0h248C194 59 176 122 121 166 81 198 38 214 0 230z" fill="#2E3B25"/></svg>
@@ -195,15 +223,26 @@ window.Program = {
           <span class="flyer-header-rule"></span>
         </header>
         <section class="flyer-events">${this.flyerEvents(events)}</section>
-        <footer class="flyer-footer">Semoga Alloh paring lancar barokah <span dir="rtl">الحمد لله</span></footer>
+        <footer class="flyer-footer" aria-hidden="true">
+          <svg class="flyer-footer-ornament" viewBox="0 0 480 150" fill="none" stroke="#B5945B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M240 8v22m0 90v22M68 75h42m260 0h42"/>
+            <path d="m240 30 14 29 31-11-11 31 29 14-29 14 11 31-31-11-14 29-14-29-31 11 11-31-29-14 29-14-11-31 31 11z"/>
+            <path d="m240 51 9 15 17-3-3 17 15 9-15 9 3 17-17-3-9 15-9-15-17 3 3-17-15-9 15-9-3-17 17 3z"/>
+            <circle cx="240" cy="80" r="13"/><circle cx="86" cy="75" r="7"/><circle cx="394" cy="75" r="7"/>
+            <path d="M110 75c31 0 36-22 60-22m-60 22c31 0 36 22 60 22m200-22c-31 0-36-22-60-22m60 22c-31 0-36 22-60 22"/>
+            <path d="M145 53c-7-17-24-20-35-11 7 17 24 20 35 11Zm0 44c-7 17-24 20-35 11 7-17 24-20 35-11Zm190-44c7-17 24-20 35-11-7 17-24 20-35 11Zm0 44c7 17 24 20 35 11-7-17-24-20-35-11Z"/>
+            <path d="m173 53 10 10m124-10-10 10m-124 24 10-10m124 10-10-10"/>
+            <circle cx="183" cy="63" r="3" fill="#B5945B"/><circle cx="297" cy="63" r="3" fill="#B5945B"/><circle cx="183" cy="87" r="3" fill="#B5945B"/><circle cx="297" cy="87" r="3" fill="#B5945B"/>
+          </svg>
+        </footer>
       </div>
     </article>`;
   },
-  downloadFlyer(blob) {
+  downloadFlyer(blob,filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'jadwal-kegiatan.png';
+    link.download = filename;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
   },
@@ -219,31 +258,41 @@ window.Program = {
       DKM.toast('Tidak ada agenda pada periode tanggal tersebut.','info');
       return;
     }
+    const eventPages = this.splitFlyerEvents(events);
     const button = document.getElementById('programShareSubmit');
     const originalButtonHTML = button.innerHTML;
     let flyerRoot;
     this.sharing = true;
     button.disabled = true;
-    button.textContent = 'Membuat gambar...';
+    button.textContent = 'Menyiapkan flyer...';
     try {
       const flyerTitle = 'JADWAL KEGIATAN MASJID BAITU TAQWA';
       const period = `${DKM.formatDate(start,{day:'numeric',month:'long',year:'numeric'})} – ${DKM.formatDate(end,{day:'numeric',month:'long',year:'numeric'})}`;
-      flyerRoot = document.createElement('div');
-      flyerRoot.className = 'program-flyer-offscreen';
-      flyerRoot.setAttribute('aria-hidden','true');
-      flyerRoot.innerHTML = this.flyerMarkup({ title: flyerTitle,period,events });
-      document.body.appendChild(flyerRoot);
-      if (document.fonts?.ready) await document.fonts.ready;
-      await flyerRoot.querySelector('.flyer-logo').decode();
-      const canvas = await html2canvas(flyerRoot.querySelector('#programFlyer'),{scale:2,backgroundColor:'#F3EFE6'});
-      const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
-      if (!blob) throw new Error('Browser gagal menyiapkan file PNG.');
-      const file = typeof File === 'undefined' ? null : new File([blob],'jadwal-kegiatan.png',{type:'image/png'});
+      const images = [];
+      for (let index = 0; index < eventPages.length; index++) {
+        button.textContent = `Membuat flyer ${index + 1}/${eventPages.length}...`;
+        flyerRoot = document.createElement('div');
+        flyerRoot.className = 'program-flyer-offscreen';
+        flyerRoot.setAttribute('aria-hidden','true');
+        flyerRoot.innerHTML = this.flyerMarkup({ title: flyerTitle,period,events:eventPages[index] });
+        document.body.appendChild(flyerRoot);
+        if (document.fonts?.ready) await document.fonts.ready;
+        await flyerRoot.querySelector('.flyer-logo').decode();
+        const canvas = await html2canvas(flyerRoot.querySelector('#programFlyer'),{scale:3,backgroundColor:'#F3EFE6'});
+        const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
+        if (!blob) throw new Error(`Browser gagal membuat flyer ${index + 1}.`);
+        const filename = eventPages.length > 1 ? `jadwal-kegiatan-${index + 1}.png` : 'jadwal-kegiatan.png';
+        const file = typeof File === 'undefined' ? null : new File([blob],filename,{type:'image/png'});
+        images.push({ blob,file,filename });
+        flyerRoot.remove();
+        flyerRoot = null;
+      }
+      const files = images.map(image => image.file).filter(Boolean);
       let shared = false;
-      if (file && navigator.share) {
+      if (files.length === images.length && navigator.share) {
         try {
-          if (!navigator.canShare || navigator.canShare({files:[file]})) {
-            await navigator.share({files:[file],title:flyerTitle,text:`${flyerTitle} · ${period}`});
+          if (!navigator.canShare || navigator.canShare({files})) {
+            await navigator.share({files,title:flyerTitle,text:`${flyerTitle} · ${period}`});
             shared = true;
           }
         } catch (error) {
@@ -252,10 +301,13 @@ window.Program = {
         }
       }
       if (!shared) {
-        this.downloadFlyer(blob);
-        DKM.toast('Flyer diunduh sebagai jadwal-kegiatan.png.');
+        for (let index = 0; index < images.length; index++) {
+          this.downloadFlyer(images[index].blob,images[index].filename);
+          if (index < images.length - 1) await new Promise(resolve => setTimeout(resolve,250));
+        }
+        DKM.toast(`${images.length} flyer berhasil diunduh.`);
       } else {
-        DKM.toast('Flyer kegiatan berhasil dibagikan.');
+        DKM.toast(`${files.length} flyer siap dibagikan.`);
       }
       document.getElementById('programDialog').close();
     } catch (error) {
