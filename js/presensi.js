@@ -446,23 +446,138 @@ window.Presensi = {
       `<tr><td>${DKM.escape(row.name)}</td><td>${row.present}</td><td>${row.total}</td><td>${row.percent}%</td></tr>`
     ).join('') : '<tr><td colspan="4" class="empty-state">Belum ada data untuk filter ini.</td></tr>';
   },
+  createExportPage() {
+    const page = document.createElement('section');
+    page.style.cssText = 'position:relative;box-sizing:border-box;width:794px;height:1123px;flex:none;overflow:hidden;padding:36px;background:#F4EFE8;color:#2C332E;font-family:Inter,Arial,sans-serif;';
+    return page;
+  },
+  createExportTablePage(pageNumber, filterSummary) {
+    const page = this.createExportPage();
+    const continuation = pageNumber > 1 ? ' (lanjutan)' : '';
+    page.innerHTML = `<header style="margin-bottom:20px">
+      <h2 style="margin:0;font-size:23px;font-weight:600">Rekap Per Nama Jamaah${continuation}</h2>
+      <p style="margin:7px 0 0;color:#6E7570;font-size:12px">${DKM.escape(filterSummary)}</p>
+    </header>
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px">
+      <thead><tr style="background:#E4E8DF">
+        <th style="width:46%;padding:11px 9px;text-align:left">Nama</th>
+        <th style="width:16%;padding:11px 9px;text-align:center">Hadir</th>
+        <th style="width:20%;padding:11px 9px;text-align:center">Total Sesi</th>
+        <th style="width:18%;padding:11px 9px;text-align:center">Persentase</th>
+      </tr></thead><tbody></tbody>
+    </table>
+    <footer style="position:absolute;right:36px;bottom:20px;left:36px;border-top:1px solid #D9DFD9;padding-top:9px;text-align:right;color:#6E7570;font-size:11px"></footer>`;
+    document.getElementById('dashboardExportPages').appendChild(page);
+    return { page, body: page.querySelector('tbody') };
+  },
   async exportCanvas(format) {
+    let exportRoot;
     try {
-      const canvas = await html2canvas(document.getElementById('dashboardArea'),{scale:2,backgroundColor:'#F4EFE8'});
+      const monthFrom = document.getElementById('dashMonthFrom').value;
+      const monthTo = document.getElementById('dashMonthTo').value;
+      const typeSelect = document.getElementById('dashType');
+      const dateSelect = document.getElementById('dashDate');
+      const monthLabel = value => value
+        ? DKM.formatDate(`${value}-01`,{month:'long',year:'numeric'})
+        : 'Tidak dibatasi';
+      const periodLabel = `${monthLabel(monthFrom)} – ${monthLabel(monthTo)}`;
+      const typeLabel = typeSelect.selectedOptions[0].textContent;
+      const dateLabel = dateSelect.value ? DKM.formatDate(dateSelect.value) : 'Semua tanggal';
+      const filterSummary = `${typeLabel} · ${periodLabel}${typeSelect.value ? ` · ${dateLabel}` : ''}`;
+      const exportDataRows = [...document.querySelectorAll('#attendanceTable tr')].map(row =>
+        [...row.cells].map(cell => cell.textContent.trim())
+      ).filter(row => row.length === 4);
+
+      exportRoot = document.createElement('div');
+      exportRoot.id = 'dashboardExportPages';
+      exportRoot.style.cssText = 'position:fixed;top:0;left:-10000px;z-index:-1;display:flex;flex-direction:column;gap:0;width:794px;';
+      document.body.appendChild(exportRoot);
+
+      const barImage = document.getElementById('attendanceBars').toDataURL('image/png');
+      const donutImage = document.getElementById('attendanceDonut').toDataURL('image/png');
+      const pageOne = this.createExportPage();
+      pageOne.innerHTML = `<header style="margin-bottom:15px">
+        <h1 style="margin:0;font-size:25px;font-weight:600">Dashboard Presensi</h1>
+        <p style="margin:5px 0 0;color:#6E7570;font-size:12px">Ringkasan kehadiran pengajian</p>
+      </header>
+      <section style="margin-bottom:12px;border:1px solid #E6E0D6;border-radius:12px;background:#FAF8F5;padding:11px">
+        <div style="display:grid;grid-template-columns:1fr 1.2fr 1.2fr 1fr;gap:8px">
+          ${[
+            ['Jenis',typeLabel],
+            ['Dari bulan',monthLabel(monthFrom)],
+            ['Sampai bulan',monthLabel(monthTo)],
+            ['Tanggal',dateLabel]
+          ].map(([label,value]) => `<div style="min-width:0">
+            <p style="margin:0 0 4px;color:#6E7570;font-size:10px">${DKM.escape(label)}</p>
+            <p style="margin:0;font-size:12px;font-weight:600;overflow-wrap:anywhere">${DKM.escape(value)}</p>
+          </div>`).join('')}
+        </div>
+      </section>
+      <section style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px">
+        ${[
+          ['Berkewajiban Hadir',document.getElementById('kpiRequired').textContent],
+          ['Jumlah Hadir',document.getElementById('kpiPresent').textContent],
+          ['Persentase Kehadiran',document.getElementById('kpiPercent').textContent]
+        ].map(([label,value]) => `<article style="min-width:0;border:1px solid #E6E0D6;border-radius:12px;background:#FAF8F5;padding:12px">
+          <p style="min-height:28px;margin:0;color:#6E7570;font-size:11px">${DKM.escape(label)}</p>
+          <p style="margin:5px 0 0;font-size:22px;font-weight:600">${DKM.escape(value)}</p>
+        </article>`).join('')}
+      </section>
+      <section style="margin-bottom:12px;border:1px solid #E6E0D6;border-radius:12px;background:#FAF8F5;padding:12px">
+        <h2 style="margin:0 0 6px;font-size:15px;font-weight:600">Tren Persentase Kehadiran</h2>
+        <img src="${barImage}" alt="Grafik tren persentase kehadiran" style="display:block;width:100%;height:260px;object-fit:contain">
+      </section>
+      <section style="border:1px solid #E6E0D6;border-radius:12px;background:#FAF8F5;padding:12px">
+        <h2 style="margin:0 0 6px;font-size:15px;font-weight:600">Rasio Kehadiran</h2>
+        <img src="${donutImage}" alt="Grafik rasio kehadiran" style="display:block;width:100%;height:245px;object-fit:contain">
+      </section>
+      <footer style="position:absolute;right:36px;bottom:20px;left:36px;border-top:1px solid #D9DFD9;padding-top:9px;text-align:right;color:#6E7570;font-size:11px"></footer>`;
+      exportRoot.appendChild(pageOne);
+
+      let tablePageNumber = 1;
+      let tablePage = this.createExportTablePage(tablePageNumber,filterSummary);
+      if (exportDataRows.length) {
+        exportDataRows.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = row.map((cell,index) => `<td style="border-bottom:1px solid #E6E0D6;padding:10px 9px;${index ? 'text-align:center;' : 'overflow-wrap:anywhere;'}">${DKM.escape(cell)}</td>`).join('');
+          tablePage.body.appendChild(tr);
+          if (tr.getBoundingClientRect().bottom > tablePage.page.getBoundingClientRect().bottom - 58 && tablePage.body.rows.length > 1) {
+            tablePage.body.removeChild(tr);
+            tablePage = this.createExportTablePage(++tablePageNumber,filterSummary);
+            tablePage.body.appendChild(tr);
+          }
+        });
+      } else {
+        tablePage.body.innerHTML = '<tr><td colspan="4" style="padding:18px 9px;text-align:center;color:#6E7570">Belum ada data untuk filter ini.</td></tr>';
+      }
+
+      const pages = [...exportRoot.children];
+      pages.forEach((page,index) => {
+        page.querySelector('footer').textContent = `Halaman ${index + 1} dari ${pages.length}`;
+      });
+      const canvases = [];
+      for (const page of pages) {
+        canvases.push(await html2canvas(page,{scale:2,backgroundColor:'#F4EFE8'}));
+      }
       if (format === 'png') {
-        const link = document.createElement('a'); link.download = 'dashboard-presensi.png'; link.href = canvas.toDataURL('image/png'); link.click();
+        for (let index = 0; index < canvases.length; index++) {
+          const link = document.createElement('a');
+          link.download = `dashboard-presensi-${index + 1}.png`;
+          link.href = canvases[index].toDataURL('image/png');
+          link.click();
+          await new Promise(resolve => setTimeout(resolve,250));
+        }
       } else {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p','mm','a4');
-        const image = canvas.toDataURL('image/png');
-        const width = 190, height = canvas.height * width / canvas.width, pageHeight = 277;
-        for (let offset = 0, page = 0; offset < height; offset += pageHeight, page++) {
-          if (page) pdf.addPage();
-          pdf.addImage(image,'PNG',10,10-offset,width,height);
-        }
+        canvases.forEach((canvas,index) => {
+          if (index) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,297);
+        });
         pdf.save('dashboard-presensi.pdf');
       }
     } catch (error) { DKM.toast(`Ekspor gagal: ${error.message}`,'error'); }
+    finally { exportRoot?.remove(); }
   },
   async renderHasda() {
     document.getElementById('presensiView').innerHTML = `<section class="card card-pad mb-4"><div class="flex max-w-lg flex-wrap items-end gap-3">
