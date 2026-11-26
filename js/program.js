@@ -188,6 +188,7 @@ window.Program = {
         <header class="flyer-header">
           <svg class="flyer-lantern flyer-lantern-left" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
           <svg class="flyer-lantern flyer-lantern-right" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
+        <img class="flyer-logo" src="logo.png" alt="Logo Masjid Baitu Taqwa">
           <p class="flyer-kicker">DKM MASJID BAITU TAQWA</p>
           <h1>${DKM.escape(title)}</h1>
           <p class="flyer-period">${DKM.escape(period)}</p>
@@ -233,6 +234,7 @@ window.Program = {
       flyerRoot.innerHTML = this.flyerMarkup({ title: flyerTitle,period,events });
       document.body.appendChild(flyerRoot);
       if (document.fonts?.ready) await document.fonts.ready;
+      await flyerRoot.querySelector('.flyer-logo').decode();
       const canvas = await html2canvas(flyerRoot.querySelector('#programFlyer'),{scale:2,backgroundColor:'#F3EFE6'});
       const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
       if (!blob) throw new Error('Browser gagal menyiapkan file PNG.');

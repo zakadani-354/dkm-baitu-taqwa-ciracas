@@ -83,6 +83,7 @@ td{border-top:1px solid #EFEAE2;padding:12px;font-size:.86rem;vertical-align:mid
 .flyer-lantern{position:absolute;top:0;width:76px;height:152px}
 .flyer-lantern-left{left:10px}
 .flyer-lantern-right{right:10px}
+.flyer-logo{display:block;width:112px;height:112px;margin:0 auto 12px;object-fit:contain;mix-blend-mode:multiply}
 .flyer-kicker{margin:0 0 13px;color:#7A7654;font-size:15px;font-weight:700;letter-spacing:.24em}
 .flyer-header h1{margin:0;color:#1E281A;font-family:Georgia,"Times New Roman",serif;font-size:43px;font-weight:700;line-height:1.16}
 .flyer-period{margin:16px 0 0;color:#4A5641;font-size:18px;font-weight:600;letter-spacing:.06em}
