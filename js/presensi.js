@@ -494,7 +494,19 @@ window.Presensi = {
       document.body.appendChild(exportRoot);
 
       const barImage = document.getElementById('attendanceBars').toDataURL('image/png');
-      const donutImage = document.getElementById('attendanceDonut').toDataURL('image/png');
+      const donutCanvas = document.createElement('canvas');
+      donutCanvas.width = 320;
+      donutCanvas.height = 320;
+      const exportDonut = new Chart(donutCanvas,{
+        type:'doughnut',
+        data:{
+          labels:this.chartDonut.data.labels,
+          datasets:this.chartDonut.data.datasets.map(dataset => ({...dataset,data:[...dataset.data]}))
+        },
+        options:{responsive:false,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'bottom'}}}
+      });
+      const donutImage = donutCanvas.toDataURL('image/png');
+      exportDonut.destroy();
       const pageOne = this.createExportPage();
       pageOne.innerHTML = `<header style="margin-bottom:15px">
         <h1 style="margin:0;font-size:25px;font-weight:600">Dashboard Presensi</h1>
@@ -529,7 +541,7 @@ window.Presensi = {
       </section>
       <section style="border:1px solid #E6E0D6;border-radius:12px;background:#FAF8F5;padding:12px">
         <h2 style="margin:0 0 6px;font-size:15px;font-weight:600">Rasio Kehadiran</h2>
-        <img src="${donutImage}" alt="Grafik rasio kehadiran" style="display:block;width:100%;height:245px;object-fit:contain">
+        <img src="${donutImage}" alt="Grafik rasio kehadiran" style="display:block;width:280px;height:280px;margin:0 auto;object-fit:contain">
       </section>
       <footer style="position:absolute;right:36px;bottom:20px;left:36px;border-top:1px solid #D9DFD9;padding-top:9px;text-align:right;color:#6E7570;font-size:11px"></footer>`;
       exportRoot.appendChild(pageOne);
