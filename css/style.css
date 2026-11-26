@@ -73,19 +73,19 @@ td{border-top:1px solid #EFEAE2;padding:12px;font-size:.86rem;vertical-align:mid
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .span-2{grid-column:span 2}
 .program-flyer-offscreen{position:fixed;top:0;left:-12000px;z-index:-1;width:1080px;pointer-events:none}
-.program-flyer{position:relative;isolation:isolate;box-sizing:border-box;min-height:1380px;overflow:hidden;padding:70px 72px 72px;background-color:#F3EFE6;background-image:radial-gradient(rgba(96,83,56,.12) .7px,transparent .9px),radial-gradient(rgba(255,255,255,.32) .7px,transparent 1px);background-position:0 0,3px 4px;background-size:8px 8px;color:#1E281A}
-.program-flyer::before{position:absolute;inset:0;z-index:0;background:linear-gradient(135deg,rgba(255,255,255,.17),transparent 42%,rgba(176,157,117,.08));content:"";pointer-events:none}
-.flyer-corner{position:absolute;top:0;left:0;z-index:1;width:360px;height:340px}
-.flyer-mosque{position:absolute;right:0;bottom:54px;left:0;z-index:0;width:100%;height:340px;opacity:.07}
-.flyer-waves{position:absolute;right:0;bottom:0;left:0;z-index:0;width:100%;height:220px}
-.flyer-content{position:relative;z-index:2;display:flex;min-height:1238px;flex-direction:column}
-.flyer-header{position:relative;margin:0 0 16px;padding:30px 100px 30px;text-align:center}
+.program-flyer{position:relative;isolation:isolate;box-sizing:border-box;min-height:1500px;overflow:hidden;padding:190px 92px 70px;background:#163020;color:#1E281A}
+.flyer-pattern,.flyer-dome-frame{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.flyer-pattern{z-index:0}
+.flyer-dome-frame{z-index:1}
+.flyer-content{position:relative;z-index:2;display:flex;min-height:1240px;flex-direction:column}
+.flyer-header{position:relative;margin:0 0 16px;padding:18px 50px 28px;text-align:center}
 .flyer-lantern{position:absolute;top:0;width:76px;height:152px}
 .flyer-lantern-left{left:10px}
 .flyer-lantern-right{right:10px}
-.flyer-logo{display:block;width:128px;height:128px;margin:0 auto 12px;object-fit:contain;mix-blend-mode:multiply}
-.flyer-kicker{margin:0 0 13px;color:#7A7654;font-size:17px;font-weight:700;letter-spacing:.24em}
-.flyer-header h1{margin:0;color:#1E281A;font-family:Georgia,"Times New Roman",serif;font-size:50px;font-weight:700;line-height:1.16}
+.flyer-logo-ring{display:grid;width:198px;height:198px;place-items:center;margin:0 auto 18px;border:8px solid #142B1D;border-radius:50%;background:#F6F2E9;box-shadow:0 0 0 6px #F6F2E9,0 0 0 12px #142B1D}
+.flyer-logo{display:block;width:160px;height:160px;object-fit:contain;mix-blend-mode:multiply}
+.flyer-kicker{margin:0 0 13px;color:#7A7654;font-size:18px;font-weight:700;letter-spacing:.24em}
+.flyer-header h1{margin:0;color:#1E281A;font-family:Georgia,"Times New Roman",serif;font-size:48px;font-weight:700;line-height:1.16}
 .flyer-period{margin:16px 0 0;color:#4A5641;font-size:22px;font-weight:600;letter-spacing:.06em}
 .flyer-header-rule{display:block;width:170px;height:2px;margin:22px auto 0;background:#9E8A5E}
 .flyer-events{position:relative}

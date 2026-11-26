@@ -179,44 +179,47 @@ window.Program = {
       </article>`;
     }).join('');
   },
-  splitFlyerEvents(rows) {
+  groupFlyerEventsByTwoDays(rows,start,end) {
     const pages = [];
-    let page = [], weight = 0;
-    rows.forEach(row => {
-      const details = this.parseFlyerDetails(row.keterangan);
-      const detailText = [
-        row.waktu_mulai,
-        details.waktu,
-        row.penanggung_jawab,
-        details.tempat,
-        details.materi,
-        details.peserta,
-        details.badge,
-        details.catatan.join(' ')
-      ].filter(Boolean).join('\n');
-      const lineCount = detailText ? detailText.split(/\r?\n/).length : 0;
-      const eventWeight = 1 + row.judul_program.length / 120 + detailText.length / 180 + lineCount * .22;
-      if (page.length && (page.length >= 2 || weight + eventWeight > 4.2)) {
-        pages.push(page);
-        page = [];
-        weight = 0;
-      }
-      page.push(row);
-      weight += eventWeight;
-    });
-    if (page.length) pages.push(page);
+    const endDate = new Date(`${end}T00:00:00`);
+    for (let cursor = new Date(`${start}T00:00:00`); cursor <= endDate; cursor.setDate(cursor.getDate() + 2)) {
+      const periodStart = this.dateKey(cursor);
+      const periodEndDate = new Date(cursor);
+      periodEndDate.setDate(periodEndDate.getDate() + 1);
+      if (periodEndDate > endDate) periodEndDate.setTime(endDate.getTime());
+      const periodEnd = this.dateKey(periodEndDate);
+      const periodEvents = rows.filter(row => row.tanggal >= periodStart && row.tanggal <= periodEnd);
+      if (periodEvents.length) pages.push({ start: periodStart, end: periodEnd, events: periodEvents });
+    }
     return pages;
   },
   flyerMarkup({ title,period,events }) {
+    const domePath = 'M58 1440V700c0-96 43-164 125-209 63-35 127-38 169-79 43-42 33-98 45-157C411 190 459 106 540 34c81 72 129 156 143 221 12 59 2 115 45 157 42 41 106 44 169 79 82 45 125 113 125 209v740z';
     return `<article id="programFlyer" class="program-flyer">
-      <svg class="flyer-corner" viewBox="0 0 360 340" aria-hidden="true"><path d="M0 0h360C296 49 292 130 229 183 167 236 77 259 0 340z" fill="#1F2A1C"/><path d="M0 0h248C194 59 176 122 121 166 81 198 38 214 0 230z" fill="#2E3B25"/></svg>
-      <svg class="flyer-mosque" viewBox="0 0 1080 330" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><g fill="#C5B99F"><path d="M0 240h1080v90H0zM95 165h110v165H95zM875 165h110v165H875z"/><path d="M72 165h156l-78-90zM852 165h156l-78-90z"/><path d="M320 242c0-128 99-210 220-210s220 82 220 210z"/><path d="M505 35h70V0h-70zM532 0l8-25 8 25zM252 245c0-64 53-112 118-112s118 48 118 112zM592 245c0-64 53-112 118-112s118 48 118 112z"/><path d="M340 132h60v-50h-60zM680 132h60v-50h-60z"/></g></svg>
-      <svg class="flyer-waves" viewBox="0 0 1080 220" preserveAspectRatio="none" aria-hidden="true"><path d="M0 83c190 94 353 56 535 29 194-29 362-9 545 55v53H0z" fill="#8B1E1E"/><path d="M0 137c184-68 373-44 541-6 202 47 363 39 539-21v110H0z" fill="#2E3B25"/></svg>
+      <svg class="flyer-pattern" viewBox="0 0 1080 1500" preserveAspectRatio="none" aria-hidden="true">
+        <defs><pattern id="flyerStarPattern" width="120" height="120" patternUnits="userSpaceOnUse">
+          <path d="m60 5 12 33 34-14-15 33 34 3-29 19 24 25-35-7-8 35-17-31-27 21 5-35-35-5 27-22-20-28 34 11zM0 0l60 60L120 0M0 120l60-60 60 60M60 0v120M0 60h120" fill="none" stroke="#C9A656" stroke-opacity=".25" stroke-width="1.5"/>
+        </pattern></defs>
+        <rect width="1080" height="1500" fill="#163020"/><rect width="1080" height="1500" fill="url(#flyerStarPattern)"/>
+      </svg>
+      <svg class="flyer-dome-frame" viewBox="0 0 1080 1500" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="flyerGoldBorder" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D4AF37"/><stop offset=".5" stop-color="#F3E5AB"/><stop offset="1" stop-color="#B8860B"/></linearGradient>
+          <pattern id="flyerIvoryMarble" width="190" height="190" patternUnits="userSpaceOnUse">
+            <rect width="190" height="190" fill="#F6F2E9"/>
+            <path d="M-20 45c44-30 70 28 116-3s57-17 108 7M-30 132c48-35 79 25 121-4s67-17 112 8M35-20c-4 38 21 49 6 79s-17 50 6 76" fill="none" stroke="#BDAE8D" stroke-opacity=".14" stroke-width="2"/>
+            <path d="M5 95c35-13 37 10 71-2s44-10 77 4" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3"/>
+          </pattern>
+          <filter id="flyerDomeShadow" x="-15%" y="-12%" width="130%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#09170E" flood-opacity=".65"/></filter>
+        </defs>
+        <path id="flyerDomeShape" d="${domePath}" fill="url(#flyerIvoryMarble)" stroke="url(#flyerGoldBorder)" stroke-width="18" filter="url(#flyerDomeShadow)"/>
+        <path class="flyer-dome-outline" d="${domePath}" fill="none" stroke="#F3E5AB" stroke-width="5"/>
+      </svg>
       <div class="flyer-content">
         <header class="flyer-header">
           <svg class="flyer-lantern flyer-lantern-left" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
           <svg class="flyer-lantern flyer-lantern-right" viewBox="0 0 80 160" aria-hidden="true"><path d="M40 0v23" stroke="#B5945B" stroke-width="3"/><path d="M29 22h22v11H29zM23 39l17-8 17 8-5 8v44l-12 17-12-17V47z" fill="none" stroke="#B5945B" stroke-width="3"/><path d="M29 52h22v28H29zM40 104v19m-10 0h20M40 123l-7 12h14z" fill="#B5945B" opacity=".8"/><circle cx="40" cy="65" r="8" fill="#B5945B" opacity=".5"/></svg>
-        <img class="flyer-logo" src="logo.png" alt="Logo Masjid Baitu Taqwa">
+          <span class="flyer-logo-ring"><img class="flyer-logo" src="logo.png" alt="Logo Masjid Baitu Taqwa"></span>
           <p class="flyer-kicker">DKM MASJID BAITU TAQWA</p>
           <h1>${DKM.escape(title)}</h1>
           <p class="flyer-period">${DKM.escape(period)}</p>
@@ -238,6 +241,23 @@ window.Program = {
       </div>
     </article>`;
   },
+  fitFlyerFrame(flyerRoot) {
+    const flyer = flyerRoot.querySelector('#programFlyer');
+    const height = Math.ceil(flyer.getBoundingClientRect().height);
+    const bottom = height - 25;
+    flyerRoot.querySelectorAll('.flyer-pattern,.flyer-dome-frame').forEach(svg => {
+      svg.setAttribute('viewBox',`0 0 1080 ${height}`);
+    });
+    flyerRoot.querySelectorAll('.flyer-pattern rect').forEach(rect => rect.setAttribute('height',String(height)));
+    const dome = flyerRoot.querySelector('#flyerDomeShape');
+    const path = dome.getAttribute('d');
+    if (!path.startsWith('M58 1440V700') || !path.endsWith('v740z')) {
+      throw new Error('Bentuk kubah flyer tidak dapat disesuaikan dengan tinggi konten.');
+    }
+    const fittedPath = path.replace('M58 1440V700',`M58 ${bottom}V700`).replace('v740z',`v${bottom - 700}z`);
+    dome.setAttribute('d',fittedPath);
+    flyerRoot.querySelector('.flyer-dome-outline').setAttribute('d',fittedPath);
+  },
   downloadFlyer(blob,filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -258,7 +278,7 @@ window.Program = {
       DKM.toast('Tidak ada agenda pada periode tanggal tersebut.','info');
       return;
     }
-    const eventPages = this.splitFlyerEvents(events);
+    const eventPages = this.groupFlyerEventsByTwoDays(events,start,end);
     const button = document.getElementById('programShareSubmit');
     const originalButtonHTML = button.innerHTML;
     let flyerRoot;
@@ -271,13 +291,15 @@ window.Program = {
       const images = [];
       for (let index = 0; index < eventPages.length; index++) {
         button.textContent = `Membuat flyer ${index + 1}/${eventPages.length}...`;
+        const pagePeriod = `${DKM.formatDate(eventPages[index].start,{day:'numeric',month:'long',year:'numeric'})} – ${DKM.formatDate(eventPages[index].end,{day:'numeric',month:'long',year:'numeric'})}`;
         flyerRoot = document.createElement('div');
         flyerRoot.className = 'program-flyer-offscreen';
         flyerRoot.setAttribute('aria-hidden','true');
-        flyerRoot.innerHTML = this.flyerMarkup({ title: flyerTitle,period,events:eventPages[index] });
+        flyerRoot.innerHTML = this.flyerMarkup({ title: flyerTitle,period:pagePeriod,events:eventPages[index].events });
         document.body.appendChild(flyerRoot);
         if (document.fonts?.ready) await document.fonts.ready;
         await flyerRoot.querySelector('.flyer-logo').decode();
+        this.fitFlyerFrame(flyerRoot);
         const canvas = await html2canvas(flyerRoot.querySelector('#programFlyer'),{scale:3,backgroundColor:'#F3EFE6'});
         const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
         if (!blob) throw new Error(`Browser gagal membuat flyer ${index + 1}.`);
