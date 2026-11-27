@@ -300,7 +300,13 @@ window.Program = {
           this.downloadFlyer(images[index].blob,images[index].filename);
           if (index < images.length - 1) await new Promise(resolve => setTimeout(resolve,250));
         }
-        DKM.toast(`${images.length} flyer berhasil diunduh.`);
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          const message = `${flyerTitle} · ${period}\nFlyer agenda sudah diunduh. Silakan lampirkan flyer saat mengirim pesan ini.`;
+          window.location.assign(`https://wa.me/?text=${encodeURIComponent(message)}`);
+          DKM.toast(`${images.length} flyer berhasil diunduh. Membuka WhatsApp...`);
+        } else {
+          DKM.toast(`${images.length} flyer berhasil diunduh.`);
+        }
       } else {
         DKM.toast(`${files.length} flyer siap dibagikan.`);
       }
